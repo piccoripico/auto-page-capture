@@ -85,6 +85,12 @@ The extension uses these permissions for the following reasons:
 7. Save the configuration
 8. Run it manually from the popup or let the schedule trigger it
 
+## Scheduling Notes
+
+Scheduled captures run only while the browser is running and the extension is available.
+
+If the browser is fully closed at a scheduled time, that run is skipped. When the browser starts again, the extension resumes from the next upcoming scheduled time instead of replaying missed runs.
+
 ## Load Unpacked
 
 Load the extension from the `src` directory.
