@@ -1,0 +1,8 @@
+{
+  "appName": {
+    "message": "Auto Page Capture"
+  },
+  "appDescription": {
+    "message": "執行排程的頁面操作，並將結果儲存為 MHTML、HTML、PDF 或螢幕截圖。"
+  }
+}

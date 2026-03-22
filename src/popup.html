@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto Page Capture</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <img src="icons/icon48.png" alt="icon" width="24" height="24" />
+      <div>
+        <h1 data-i18n="app.name">Auto Page Capture</h1>
+      </div>
+      <div class="header-actions">
+        <button
+          id="popout-popup"
+          class="ghost icon-only"
+          data-i18n-title="popup.popout"
+          data-i18n-aria-label="popup.popout"
+          title="ポップアウト"
+          aria-label="ポップアウト"
+        >
+          ↗</button
+        ><button id="open-options" data-i18n="popup.openOptions">設定</button>
+      </div>
+    </header>
+
+    <section class="summary-grid">
+      <div class="summary-card">
+        <span data-i18n="popup.summary.enabled">有効</span><strong id="summary-enabled">0</strong>
+      </div>
+      <div class="summary-card warn">
+        <span data-i18n="popup.summary.needs">権限未許可</span><strong id="summary-needs">0</strong>
+      </div>
+      <div class="summary-card">
+        <span data-i18n="popup.summary.history">履歴</span><strong id="summary-history">0</strong>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2 data-i18n="popup.items">アイテム</h2>
+        <button id="refresh" data-i18n="common.refresh">更新</button>
+      </div>
+      <div id="items" class="stack"></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <div>
+          <h2 data-i18n="popup.history">最近の履歴</h2>
+          <p class="subtle" data-i18n="popup.historyHelp">フルログは設定画面に保存されます。</p>
+        </div>
+        <button id="clear-history" data-i18n="popup.clearHistory">履歴クリア</button>
+      </div>
+      <div id="history" class="stack history"></div>
+    </section>
+
+    <div id="status" class="status"></div>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

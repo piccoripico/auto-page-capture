@@ -1,0 +1,8 @@
+{
+  "appName": {
+    "message": "Auto Page Capture"
+  },
+  "appDescription": {
+    "message": "スケジュールしたページ操作を実行し、MHTML、HTML、PDF、またはスクリーンショットとして保存します。"
+  }
+}

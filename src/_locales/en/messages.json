@@ -1,0 +1,8 @@
+{
+  "appName": {
+    "message": "Auto Page Capture"
+  },
+  "appDescription": {
+    "message": "Run scheduled page actions and save the result as MHTML, HTML, PDF, or screenshots."
+  }
+}

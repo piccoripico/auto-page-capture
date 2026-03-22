@@ -1,0 +1,8 @@
+{
+  "appName": {
+    "message": "Auto Page Capture"
+  },
+  "appDescription": {
+    "message": "执行预定的页面操作，并将结果保存为 MHTML、HTML、PDF 或屏幕截图。"
+  }
+}
