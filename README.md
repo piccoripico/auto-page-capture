@@ -128,6 +128,18 @@ Run lint:
 npm run lint
 ```
 
+Run automated system tests:
+
+```bash
+npm run test:e2e
+```
+
+Run the manual headed smoke test for the successful host-permission flow:
+
+```bash
+npm run test:e2e:manual
+```
+
 Auto-fix lint issues where possible:
 
 ```bash
@@ -141,6 +153,8 @@ npm run format
 ```
 
 If PowerShell blocks `npm`, use `npm.cmd` instead.
+
+See [`tests/README.md`](tests/README.md) for details about automated versus manual system tests, including the multi-format manual smoke test.
 
 ## Repository Layout
 
