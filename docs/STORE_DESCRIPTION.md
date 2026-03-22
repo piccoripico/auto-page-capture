@@ -429,7 +429,35 @@ Use only the ones that genuinely match the listing. Do not stuff every term into
 - Keep the detailed description clear and concrete. Avoid marketing language that promises behavior the extension does not implement.
 - Use the same logo and screenshots across languages if needed, then localize the description text first.
 
-### 4.2 Chrome Web Store
+### 4.2 Notes for certification (`Edge Add-ons`)
+
+Use this as the private certification note for testers. It is intentionally written in English for the review workflow and stays under the 2,000-character limit.
+
+```text
+No test account, username, password, paid subscription, or external service dependency is required.
+
+Main UI:
+- Options page: create and edit capture items, schedules, pre-save actions, permissions, logs, and settings
+- Popup: run items manually and review recent history
+
+Basic test flow:
+1. Open the extension's Options page.
+2. Create or edit an item and enter any public http/https URL.
+3. Choose a save format.
+4. Save the configuration.
+5. Grant site access for that origin when prompted, either from the settings page or from the popup.
+6. Open the popup and click Run to test a manual capture.
+7. Confirm the result in Recent history in the popup and in Logs on the Options page.
+
+Important notes:
+- Scheduled runs work only while the browser is running and the extension is available.
+- If the browser is fully closed at a scheduled time, that run is skipped and is not replayed automatically after startup.
+- Captured files are saved to the local Downloads folder.
+- PDF and image capture use the debugger permission and may fail if DevTools is attached to the same tab.
+- The extension does not upload captured page data to any external server or cloud service.
+```
+
+### 4.3 Chrome Web Store
 
 - Do not repeat the short description word-for-word at the start of the long description.
 - Keep the first paragraph focused on what the extension does and when it is useful.
