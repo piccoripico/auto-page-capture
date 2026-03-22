@@ -6,9 +6,20 @@ It opens a target page on a schedule, optionally performs pre-save actions, and 
 
 ## Screenshots
 
-| Popup                                         | Settings                                           |
-| --------------------------------------------- | -------------------------------------------------- |
-| ![Popup screen](docs/images/popup-screen.svg) | ![Settings screen](docs/images/options-screen.svg) |
+<table>
+  <tr>
+    <td align="center">
+      <img src="docs/images/popup-screen.png" alt="Popup screen" width="320" />
+    </td>
+    <td align="center">
+      <img src="docs/images/options-screen.png" alt="Settings screen" width="640" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Popup</strong></td>
+    <td align="center"><strong>Settings</strong></td>
+  </tr>
+</table>
 
 ## Why This Extension Exists
 
