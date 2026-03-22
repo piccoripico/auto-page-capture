@@ -886,9 +886,9 @@ function handleDetailInput(event) {
             ? target.value === ''
               ? ''
               : Number(target.value)
-              : field === 'dispatchInput' || field === 'dispatchChange'
-                ? target.value === 'true'
-                : target.value;
+            : field === 'dispatchInput' || field === 'dispatchChange'
+              ? target.value === 'true'
+              : target.value;
       updateDirtyState();
       renderSidebar();
       if (field === 'enabled') {
