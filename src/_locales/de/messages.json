@@ -1,0 +1,8 @@
+{
+  "appName": {
+    "message": "Auto Page Capture"
+  },
+  "appDescription": {
+    "message": "Führt geplante Seitenaktionen aus und speichert das Ergebnis als MHTML, HTML, PDF oder Screenshots."
+  }
+}

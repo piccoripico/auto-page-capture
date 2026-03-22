@@ -1,0 +1,8 @@
+{
+  "appName": {
+    "message": "Auto Page Capture"
+  },
+  "appDescription": {
+    "message": "Ejecuta acciones de página programadas y guarda el resultado como MHTML, HTML, PDF o capturas de pantalla."
+  }
+}

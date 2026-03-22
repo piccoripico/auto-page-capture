@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto Page Capture - Settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <header class="page-header">
+      <div>
+        <h1 data-i18n="app.name">Auto Page Capture</h1>
+      </div>
+      <div class="page-header-actions">
+        <div class="field slim language-field">
+          <select
+            id="ui-language"
+            aria-label="表示言語"
+            data-i18n-title="settings.language.ariaLabel"
+            data-i18n-aria-label="settings.language.ariaLabel"
+          ></select>
+        </div>
+        <button id="export-items-json" data-i18n="header.exportItems">アイテム一覧出力</button>
+        <button id="import-items-json-replace" data-i18n="header.importItemsReplace">
+          アイテム一覧取込（上書き）
+        </button>
+        <button id="import-items-json-add" data-i18n="header.importItemsAdd">
+          アイテム一覧取込（追加）
+        </button>
+        <input id="import-items-file" type="file" accept="application/json,.json" hidden />
+      </div>
+    </header>
+
+    <main class="settings-page">
+      <section class="top-layout">
+        <aside class="sidebar panel">
+          <section class="sidebar-section">
+            <div class="sidebar-head">
+              <div>
+                <h2 data-i18n="sidebar.items">アイテム一覧</h2>
+              </div>
+              <button id="add-item" class="primary" data-i18n="sidebar.addItem">
+                ＋ アイテム追加
+              </button>
+            </div>
+            <div class="sidebar-toolbar">
+              <input
+                id="search-input"
+                type="search"
+                aria-label="名前・説明・URLで検索"
+                data-i18n-aria-label="sidebar.searchPlaceholder"
+                data-i18n-placeholder="sidebar.searchPlaceholder"
+                placeholder="名前・説明・URLで検索"
+              />
+              <div class="chips">
+                <button data-filter="all" class="chip active" data-i18n="sidebar.filter.all">
+                  すべて
+                </button>
+                <button data-filter="needs" class="chip" data-i18n="sidebar.filter.needs">
+                  権限未許可
+                </button>
+                <button data-filter="enabled" class="chip" data-i18n="sidebar.filter.enabled">
+                  有効
+                </button>
+              </div>
+            </div>
+            <div id="items-list" class="items-list"></div>
+          </section>
+        </aside>
+
+        <section class="detail panel">
+          <div id="detail-root"></div>
+        </section>
+      </section>
+
+      <section class="logs-panel panel">
+        <div class="logs-panel-head">
+          <div>
+            <h2 data-i18n="logs.title">ログ</h2>
+          </div>
+          <div class="log-actions">
+            <button id="export-logs-json" data-i18n="logs.exportJson">JSON 出力</button>
+            <button id="export-logs-csv" data-i18n="logs.exportCsv">CSV 出力</button>
+          </div>
+        </div>
+
+        <div class="logs-meta-row">
+          <div class="log-settings-card">
+            <label class="field slim">
+              <span data-i18n="logs.limit">ログ保存上限件数</span>
+              <input
+                id="log-limit"
+                type="number"
+                min="10"
+                max="5000"
+                step="10"
+                data-i18n-placeholder="logs.limitPlaceholder"
+                placeholder="空欄なら300を設定"
+              />
+            </label>
+          </div>
+          <div class="logs-summary-card">
+            <div class="summary-label" data-i18n="logs.summaryTitle">ログの状態</div>
+            <p class="muted-text" id="logs-summary"></p>
+          </div>
+        </div>
+
+        <div class="logs-table-wrap full-width">
+          <table class="logs-table">
+            <thead>
+              <tr>
+                <th data-i18n="logs.at">日時</th>
+                <th data-i18n="logs.item">アイテム</th>
+                <th data-i18n="logs.status">状態</th>
+                <th data-i18n="logs.trigger">トリガー</th>
+                <th data-i18n="logs.message">メッセージ</th>
+              </tr>
+            </thead>
+            <tbody id="logs-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="sticky-footer">
+      <div class="footer-left">
+        <div id="unsaved-banner" class="unsaved-banner">未保存の変更はありません。</div>
+        <div class="footer-note" data-i18n="footer.note">
+          保存ボタンを押すまで、変更は反映されません。（権限の許可・解除は即時反映されます）
+        </div>
+      </div>
+      <div class="footer-actions">
+        <span id="status" class="status"></span>
+        <button id="cancel-all" class="ghost" disabled data-i18n="common.cancel">キャンセル</button>
+        <button id="save-all" class="primary" disabled data-i18n="common.save">保存</button>
+      </div>
+    </footer>
+
+    <template id="action-editor-template">
+      <div class="action-card">
+        <label
+          class="action-enable-rail"
+          data-i18n-title="action.enableTitle"
+          title="有効/無効を切り替え"
+        >
+          <input
+            type="checkbox"
+            data-action-field="enabled"
+            aria-label="有効/無効を切り替え"
+            data-i18n-aria-label="action.enableTitle"
+          />
+        </label>
+        <div class="action-main">
+          <div class="action-card-top">
+            <div class="action-labels">
+              <span class="step-badge">手順 1</span>
+              <select
+                data-field="type"
+                aria-label="アクション種別"
+                data-i18n-aria-label="fields.actionType"
+              ></select>
+            </div>
+            <div class="action-buttons">
+              <button data-action="move-up">↑</button>
+              <button data-action="move-down">↓</button>
+              <button data-action="duplicate" data-i18n="common.duplicate">複製</button>
+              <button data-action="delete" class="danger ghost" data-i18n="common.delete">
+                削除
+              </button>
+            </div>
+          </div>
+          <div class="action-fields"></div>
+        </div>
+      </div>
+    </template>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

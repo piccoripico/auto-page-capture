@@ -1,0 +1,8 @@
+{
+  "appName": {
+    "message": "Auto Page Capture"
+  },
+  "appDescription": {
+    "message": "예약된 페이지 작업을 실행하고 결과를 MHTML, HTML, PDF 또는 스크린샷으로 저장합니다."
+  }
+}
