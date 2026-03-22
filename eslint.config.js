@@ -19,6 +19,7 @@ export default [
         document: 'readonly',
         navigator: 'readonly',
         console: 'readonly',
+        process: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
         URL: 'readonly',
