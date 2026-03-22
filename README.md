@@ -117,18 +117,6 @@ Run lint:
 npm run lint
 ```
 
-Run automated system tests:
-
-```bash
-npm run test:e2e
-```
-
-Run the manual headed smoke test for the successful host-permission flow:
-
-```bash
-npm run test:e2e:manual
-```
-
 Auto-fix lint issues where possible:
 
 ```bash
@@ -141,14 +129,52 @@ Format the project:
 npm run format
 ```
 
+## Testing
+
+Run the default automated Playwright suite:
+
+```bash
+npm test
+```
+
+Run the same suite in a visible browser window:
+
+```bash
+npm run test:e2e:headed
+```
+
+Open Playwright UI mode:
+
+```bash
+npm run test:e2e:ui
+```
+
+Run the manual headed smoke test for the successful host-permission flow:
+
+```bash
+npm run test:e2e:manual
+```
+
 If PowerShell blocks `npm`, use `npm.cmd` instead.
 
-See [`tests/README.md`](tests/README.md) for details about automated versus manual system tests, including the multi-format manual smoke test.
+The default automated suite covers settings editing, sidebar live updates, popup rendering, recent-history clearing, and alarm synchronization.
+
+The manual smoke test exists because optional host-permission grants require a real browser confirmation. It verifies the successful flow and checks downloads across `HTML`, `MHTML`, `PDF`, `PNG`, `JPEG`, and `WebP`.
+
+See [`tests/README.md`](tests/README.md) for details about automated versus manual system tests and the local test target page.
 
 ## Repository Layout
 
-- `src/`: extension source
-- `docs/`: screenshots and store-description source files
+- `src/`: extension source loaded by the browser as an unpacked extension
+- `src/lib/`: shared runtime helpers
+- `src/_locales/`: localized UI strings
+- `tests/e2e/`: automated Playwright system tests
+- `tests/manual/`: headed manual smoke test for the permission-grant happy path
+- `tests/site/`: local deterministic test page and tiny HTTP server used by Playwright
+- `docs/`: screenshots and store-listing source files
+- `playwright.config.js`: Playwright runner configuration
+
+Generated test artifacts such as `playwright-report/` and `test-results/` are local-only and can be deleted or regenerated at any time.
 
 ## Notes
 
