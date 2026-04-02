@@ -7,6 +7,7 @@ import {
   deriveOriginPattern,
   DOM_SNAPSHOT_FORMATS,
   fileExtensionFor,
+  hasAuthCheckConfigured,
   IMAGE_SAVE_FORMATS,
   itemNextOccurrence,
   loadConfig,
@@ -15,6 +16,8 @@ import {
   normalizeItem,
   PAGE_CAPTURE_FORMATS,
   parseAlarmName,
+  PDF_MARGIN_MAP,
+  PDF_PAPER_SIZE_MAP,
   PDF_SAVE_FORMATS,
   saveConfig,
   WAIT_POLL_INTERVAL_MS,
@@ -25,6 +28,13 @@ const runningItemIds = new Set();
 const queuedItemIds = new Set();
 const pendingFilenameQueue = [];
 let executionQueue = Promise.resolve();
+
+function createExecutionError(code, message, extra = {}) {
+  const error = new Error(message);
+  error.code = code;
+  Object.assign(error, extra);
+  return error;
+}
 
 async function getCurrentLocale() {
   const { appSettings } = await loadConfig();
@@ -109,6 +119,7 @@ async function appendLog(entry) {
     itemId: entry.itemId,
     itemName: entry.itemName,
     status: entry.status,
+    errorCode: entry.errorCode || '',
     trigger: entry.trigger,
     at: entry.at,
     filename: entry.filename || '',
@@ -121,6 +132,7 @@ async function appendLog(entry) {
       at: entry.at,
       ymd: localYmd(new Date(entry.at)),
       status: entry.status,
+      errorCode: entry.errorCode || '',
       trigger: entry.trigger,
       filename: entry.filename || '',
       message: entry.message || '',
@@ -138,7 +150,69 @@ async function ensureHostPermissionForItem(item) {
   const origin = deriveOriginPattern(item.url);
   const hasPermission = await chrome.permissions.contains({ origins: [origin] });
   if (!hasPermission) {
-    throw new Error(`Site access is not granted for ${origin}`);
+    throw createExecutionError('permission', `Site access is not granted for ${origin}`);
+  }
+}
+
+function checkSelectorInPage(selectorType = 'css', selector = '') {
+  function findByXPath(xpath) {
+    const result = document.evaluate(
+      xpath,
+      document,
+      null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+      null
+    );
+    return result.singleNodeValue;
+  }
+
+  try {
+    const target =
+      selectorType === 'xpath' ? findByXPath(selector) : document.querySelector(selector);
+    return { ok: Boolean(target) };
+  } catch (error) {
+    return { ok: false, error: error?.message || String(error) };
+  }
+}
+
+async function verifyAuthenticatedState(tabId, item) {
+  const authOptions = item.authOptions || {};
+  if (!hasAuthCheckConfigured(authOptions)) {
+    return;
+  }
+
+  const tab = await chrome.tabs.get(tabId);
+  const currentUrl = String(tab?.url || '');
+  const loginFailureUrlPattern = String(authOptions.loginFailureUrlPattern || '').trim();
+  if (loginFailureUrlPattern && currentUrl.includes(loginFailureUrlPattern)) {
+    throw createExecutionError(
+      'auth',
+      `Authentication expired: redirected to a URL containing "${loginFailureUrlPattern}".`
+    );
+  }
+
+  const requiredSelector = String(authOptions.requiredSelector || '').trim();
+  if (!requiredSelector) {
+    return;
+  }
+
+  const results = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: checkSelectorInPage,
+    args: [authOptions.requiredSelectorType || 'css', requiredSelector],
+  });
+  const result = results?.[0]?.result || { ok: false };
+  if (result.error) {
+    throw createExecutionError(
+      'auth',
+      `Authentication check failed: selector could not be evaluated (${result.error}).`
+    );
+  }
+  if (!result.ok) {
+    throw createExecutionError(
+      'auth',
+      `Authentication expired: required selector was not found (${requiredSelector}).`
+    );
   }
 }
 
@@ -583,19 +657,21 @@ async function withDebugger(tabId, callback) {
   }
 }
 
-async function capturePdfViaDebugger(tabId) {
+async function capturePdfViaDebugger(tabId, pdfOptions = {}) {
   return withDebugger(tabId, async (target) => {
+    const paper = PDF_PAPER_SIZE_MAP[pdfOptions.paperSize] || PDF_PAPER_SIZE_MAP.a4;
+    const margin = PDF_MARGIN_MAP[pdfOptions.marginPreset] || PDF_MARGIN_MAP.default;
     const result = await chrome.debugger.sendCommand(target, 'Page.printToPDF', {
-      printBackground: true,
+      printBackground: pdfOptions.printBackground !== false,
       preferCSSPageSize: true,
       displayHeaderFooter: false,
-      landscape: false,
-      paperWidth: 8.27,
-      paperHeight: 11.69,
-      marginTop: 0.4,
-      marginBottom: 0.4,
-      marginLeft: 0.4,
-      marginRight: 0.4,
+      landscape: pdfOptions.landscape === true,
+      paperWidth: paper.width,
+      paperHeight: paper.height,
+      marginTop: margin.inches,
+      marginBottom: margin.inches,
+      marginLeft: margin.inches,
+      marginRight: margin.inches,
     });
     if (!result?.data) {
       throw new Error('Page.printToPDF returned no data.');
@@ -604,8 +680,9 @@ async function capturePdfViaDebugger(tabId) {
   });
 }
 
-async function captureImageViaDebugger(tabId, format) {
+async function captureImageViaDebugger(tabId, format, imageOptions = {}) {
   return withDebugger(tabId, async (target) => {
+    const jpegQuality = Math.max(1, Math.min(100, Number(imageOptions.jpegQuality ?? 90) || 90));
     const metrics = await chrome.debugger.sendCommand(target, 'Page.getLayoutMetrics');
     const cssContentSize = metrics?.cssContentSize || metrics?.contentSize;
     const width = Math.max(1, Math.ceil(cssContentSize?.width || 1280));
@@ -629,7 +706,7 @@ async function captureImageViaDebugger(tabId, format) {
         clip: { x: 0, y: 0, width, height, scale: 1 },
       };
       if (format === 'jpeg') {
-        params.quality = 90;
+        params.quality = jpegQuality;
       }
       const result = await chrome.debugger.sendCommand(target, 'Page.captureScreenshot', params);
       if (!result?.data) {
@@ -668,12 +745,12 @@ async function saveTabSnapshot(tabId, item) {
     return { filename: saved.filename, format: item.saveFormat };
   }
   if (PDF_SAVE_FORMATS.has(item.saveFormat)) {
-    const blob = await capturePdfViaDebugger(tabId);
+    const blob = await capturePdfViaDebugger(tabId, item.pdfOptions);
     const saved = await downloadBlobAsFile(blob, targetFilename);
     return { filename: saved.filename, format: item.saveFormat };
   }
   if (IMAGE_SAVE_FORMATS.has(item.saveFormat)) {
-    const blob = await captureImageViaDebugger(tabId, item.saveFormat);
+    const blob = await captureImageViaDebugger(tabId, item.saveFormat, item.imageOptions);
     const saved = await downloadBlobAsFile(blob, targetFilename);
     return { filename: saved.filename, format: item.saveFormat };
   }
@@ -695,11 +772,40 @@ function summarizeActionLog(actionLog = []) {
     .join(' | ');
 }
 
-async function executeItemNow(item, trigger = 'manual') {
-  if (runningItemIds.has(item.id)) {
-    return { ok: false, skipped: true, message: 'This item is already running.' };
+function isRetryableError(error) {
+  const code = String(error?.code || '');
+  if (code === 'auth' || code === 'permission') {
+    return false;
   }
-  runningItemIds.add(item.id);
+  const text = String(error?.message || error || '').toLowerCase();
+  return [
+    'timed out',
+    'timeout',
+    'interrupted',
+    'net::',
+    'target closed',
+    'returned no data',
+    'disconnected',
+  ].some((marker) => text.includes(marker));
+}
+
+function successMessage(actionSummary, attemptNumber, maxAttempts) {
+  const base = actionSummary || 'Saved successfully.';
+  if (attemptNumber > 1) {
+    return `${base} Recovered on attempt ${attemptNumber}/${maxAttempts}.`;
+  }
+  return base;
+}
+
+function failureMessage(error, attemptNumber, maxAttempts) {
+  const base = error?.message || String(error);
+  if (attemptNumber > 1) {
+    return `Failed after ${attemptNumber}/${maxAttempts} attempts. Last error: ${base}`;
+  }
+  return base;
+}
+
+async function executeItemAttempt(item) {
   let tabId = null;
   try {
     await ensureHostPermissionForItem(item);
@@ -763,43 +869,75 @@ async function executeItemNow(item, trigger = 'manual') {
       }
     }
     await sleep(item.waitAfterActionsMs || 0);
+    await verifyAuthenticatedState(tabId, item);
     const saved = await saveTabSnapshot(tabId, item);
-    const actionSummary = summarizeActionLog(actionLog || []);
-    const entry = {
-      id: crypto.randomUUID(),
-      itemId: item.id,
-      itemName: item.name,
-      status: 'success',
-      trigger,
-      at: new Date().toISOString(),
-      filename: saved.filename,
-      fileFormat: saved.format,
-      message: actionSummary || 'Saved successfully.',
-      actionLog: actionLog || [],
-    };
-    await appendLog(entry);
-    return { ok: true, entry };
-  } catch (error) {
-    const entry = {
-      id: crypto.randomUUID(),
-      itemId: item.id,
-      itemName: item.name,
-      status: 'error',
-      trigger,
-      at: new Date().toISOString(),
-      filename: '',
-      fileFormat: fileExtensionFor(item.saveFormat),
-      message: error?.message || String(error),
-      actionLog: error?.actionLog || [],
-    };
-    await appendLog(entry);
-    return { ok: false, entry };
+    return { saved, actionLog };
   } finally {
     if (tabId !== null && item.closeTabAfterSave !== false) {
       try {
         await chrome.tabs.remove(tabId);
       } catch {}
     }
+  }
+}
+
+async function executeItemNow(item, trigger = 'manual') {
+  if (runningItemIds.has(item.id)) {
+    return { ok: false, skipped: true, message: 'This item is already running.' };
+  }
+  runningItemIds.add(item.id);
+  const maxAttempts = 1 + Math.max(0, Number(item.retryOptions?.maxRetries || 0));
+  const retryDelayMs = Math.max(0, Number(item.retryOptions?.retryDelayMs || 1000) || 1000);
+  let lastError = null;
+  let attemptNumber = 0;
+  try {
+    for (attemptNumber = 1; attemptNumber <= maxAttempts; attemptNumber += 1) {
+      try {
+        const { saved, actionLog } = await executeItemAttempt(item);
+        const entry = {
+          id: crypto.randomUUID(),
+          itemId: item.id,
+          itemName: item.name,
+          status: 'success',
+          errorCode: '',
+          trigger,
+          at: new Date().toISOString(),
+          filename: saved.filename,
+          fileFormat: saved.format,
+          message: successMessage(summarizeActionLog(actionLog || []), attemptNumber, maxAttempts),
+          actionLog: actionLog || [],
+          attemptCount: attemptNumber,
+          maxAttempts,
+        };
+        await appendLog(entry);
+        return { ok: true, entry };
+      } catch (error) {
+        lastError = error;
+        if (attemptNumber >= maxAttempts || !isRetryableError(error)) {
+          break;
+        }
+        await sleep(retryDelayMs);
+      }
+    }
+
+    const entry = {
+      id: crypto.randomUUID(),
+      itemId: item.id,
+      itemName: item.name,
+      status: 'error',
+      errorCode: lastError?.code || '',
+      trigger,
+      at: new Date().toISOString(),
+      filename: '',
+      fileFormat: fileExtensionFor(item.saveFormat),
+      message: failureMessage(lastError, attemptNumber, maxAttempts),
+      actionLog: lastError?.actionLog || [],
+      attemptCount: attemptNumber,
+      maxAttempts,
+    };
+    await appendLog(entry);
+    return { ok: false, entry };
+  } finally {
     runningItemIds.delete(item.id);
   }
 }

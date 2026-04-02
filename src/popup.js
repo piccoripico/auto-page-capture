@@ -1,4 +1,5 @@
 import {
+  executionStatusLabel,
   formatDateTime,
   itemNextOccurrence,
   loadConfig,
@@ -153,8 +154,20 @@ async function render() {
       const main = document.createElement('div');
       main.className = 'history-main';
       appendTextNode(main, 'strong', entry.itemName);
-      appendTextNode(main, 'p', `${entry.status} / ${formatDateTime(entry.at, locale)}`);
-      appendTextNode(main, 'p', entry.filename || entry.message || '');
+      appendTextNode(
+        main,
+        'p',
+        `${executionStatusLabel(entry.status, entry.errorCode || '', locale)} / ${formatDateTime(entry.at, locale)}`
+      );
+      if (entry.filename) {
+        appendTextNode(main, 'p', entry.filename);
+      }
+      if (entry.message) {
+        appendTextNode(main, 'p', entry.message);
+      }
+      if (!entry.filename && !entry.message) {
+        appendTextNode(main, 'p', '');
+      }
       row.append(main);
       historyEl.append(row);
     });

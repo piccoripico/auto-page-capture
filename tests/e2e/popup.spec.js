@@ -1,4 +1,9 @@
-import { buildActionRunSeedState, buildSeedState } from './helpers/sample-config.js';
+import {
+  buildActionRunSeedState,
+  buildAuthFailureSeedState,
+  buildRetrySeedState,
+  buildSeedState,
+} from './helpers/sample-config.js';
 import { expect, test } from './fixtures/extension.js';
 
 test.describe('popup page', () => {
@@ -95,5 +100,92 @@ test.describe('popup page', () => {
 
     const downloadedFiles = await listDownloadedFiles();
     expect(downloadedFiles).toEqual([]);
+  });
+
+  test('shows authentication errors clearly in recent history', async ({
+    baseURL,
+    extensionId,
+    page,
+    resetExtensionState,
+  }) => {
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/popup.html?mode=window`);
+    await resetExtensionState(buildAuthFailureSeedState(baseURL));
+    await page.locator('#refresh').click();
+
+    await expect(page.locator('#summary-history')).toHaveText('1');
+    await expect(page.locator('#history .history-row').first()).toContainText(
+      'Authentication error'
+    );
+    await expect(page.locator('#history .history-row').first()).toContainText(
+      'Protected capture target'
+    );
+  });
+
+  test('retries transient failures and succeeds on a later attempt', async ({
+    baseURL,
+    extensionId,
+    listDownloadedFiles,
+    page,
+    readExtensionState,
+    resetExtensionState,
+    serviceWorkerEval,
+  }) => {
+    const originPattern = `${new URL(baseURL).origin}/*`;
+
+    await page.addInitScript((allowedOriginPattern) => {
+      const originalContains = chrome.permissions.contains.bind(chrome.permissions);
+      chrome.permissions.contains = async (details = {}) => {
+        if ((details.origins || []).includes(allowedOriginPattern)) {
+          return true;
+        }
+        return originalContains(details);
+      };
+    }, originPattern);
+
+    await serviceWorkerEval(async (allowedOriginPattern) => {
+      const originalContains = chrome.permissions.contains.bind(chrome.permissions);
+      chrome.permissions.contains = async (details = {}) => {
+        if ((details.origins || []).includes(allowedOriginPattern)) {
+          return true;
+        }
+        return originalContains(details);
+      };
+    }, originPattern);
+
+    await serviceWorkerEval(async () => {
+      const originalSaveAsMHTML = chrome.pageCapture.saveAsMHTML.bind(chrome.pageCapture);
+      let callCount = 0;
+      chrome.pageCapture.saveAsMHTML = async (details) => {
+        callCount += 1;
+        if (callCount === 1) {
+          throw new Error('Timed out waiting for transient page capture.');
+        }
+        return originalSaveAsMHTML(details);
+      };
+    });
+
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/popup.html?mode=window`);
+    await resetExtensionState(buildRetrySeedState(baseURL));
+    await page.locator('#refresh').click();
+
+    await page.getByRole('button', { name: 'Run' }).click();
+    await expect(page.locator('#status')).toContainText('Completed: Retry capture target');
+    await page.locator('#refresh').click();
+
+    await expect(page.locator('#summary-history')).toHaveText('1');
+    await expect(page.locator('#history .history-row').first()).toContainText('Succeeded');
+    await expect(page.locator('#history .history-row').first()).toContainText('Recovered');
+
+    const stored = await readExtensionState(['logs', 'recentHistory']);
+    expect(stored.logs[0].status).toBe('success');
+    expect(stored.logs[0].message).toContain('Recovered on attempt 2/2');
+    expect(stored.recentHistory[0].status).toBe('success');
+
+    const downloadedFiles = await listDownloadedFiles();
+    expect(downloadedFiles.length).toBeGreaterThan(0);
   });
 });

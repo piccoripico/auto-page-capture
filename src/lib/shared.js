@@ -9,7 +9,7 @@ export const STORAGE_KEYS = {
   APP_SETTINGS: 'appSettings',
 };
 
-export const SETTINGS_VERSION = 7;
+export const SETTINGS_VERSION = 11;
 export const RECENT_HISTORY_LIMIT = 30;
 export const WAIT_POLL_INTERVAL_MS = 200;
 
@@ -33,6 +33,22 @@ export const SAVE_FORMATS = [
   { value: 'webp', labelKey: 'shared.saveFormat.webp' },
 ];
 
+export const PDF_PAPER_SIZE_OPTIONS = [
+  { value: 'a4', labelKey: 'shared.paperSize.a4', width: 8.27, height: 11.69 },
+  { value: 'letter', labelKey: 'shared.paperSize.letter', width: 8.5, height: 11 },
+  { value: 'legal', labelKey: 'shared.paperSize.legal', width: 8.5, height: 14 },
+];
+export const PDF_PAPER_SIZE_MAP = Object.fromEntries(
+  PDF_PAPER_SIZE_OPTIONS.map((x) => [x.value, x])
+);
+
+export const PDF_MARGIN_OPTIONS = [
+  { value: 'default', labelKey: 'shared.pdfMargin.default', inches: 0.4 },
+  { value: 'narrow', labelKey: 'shared.pdfMargin.narrow', inches: 0.2 },
+  { value: 'none', labelKey: 'shared.pdfMargin.none', inches: 0 },
+];
+export const PDF_MARGIN_MAP = Object.fromEntries(PDF_MARGIN_OPTIONS.map((x) => [x.value, x]));
+
 export const SCHEDULE_INTERVALS = [
   { value: 'once', labelKey: 'shared.interval.once', minutes: null },
   { value: 'minute1', labelKey: 'shared.interval.minute1', minutes: 1 },
@@ -47,6 +63,41 @@ export const SCHEDULE_INTERVAL_MAP = Object.fromEntries(
   SCHEDULE_INTERVALS.map((x) => [x.value, x])
 );
 
+export const SCHEDULE_MODE_OPTIONS = [
+  { value: 'once', labelKey: 'schedule.mode.once' },
+  { value: 'interval', labelKey: 'schedule.mode.interval' },
+  { value: 'monthly', labelKey: 'schedule.mode.monthly' },
+];
+export const SCHEDULE_MODE_MAP = Object.fromEntries(SCHEDULE_MODE_OPTIONS.map((x) => [x.value, x]));
+
+export const SCHEDULE_INTERVAL_UNIT_OPTIONS = [
+  { value: 'minute', labelKey: 'shared.intervalUnit.minute.other' },
+  { value: 'hour', labelKey: 'shared.intervalUnit.hour.other' },
+  { value: 'day', labelKey: 'shared.intervalUnit.day.other' },
+  { value: 'week', labelKey: 'shared.intervalUnit.week.other' },
+];
+export const SCHEDULE_INTERVAL_UNIT_MAP = Object.fromEntries(
+  SCHEDULE_INTERVAL_UNIT_OPTIONS.map((x) => [x.value, x])
+);
+
+const LEGACY_INTERVAL_DEFAULTS = {
+  once: { scheduleMode: 'once', intervalUnit: 'day', intervalValue: 1 },
+  minute1: { scheduleMode: 'interval', intervalUnit: 'minute', intervalValue: 1 },
+  minute5: { scheduleMode: 'interval', intervalUnit: 'minute', intervalValue: 5 },
+  minute30: { scheduleMode: 'interval', intervalUnit: 'minute', intervalValue: 30 },
+  hour1: { scheduleMode: 'interval', intervalUnit: 'hour', intervalValue: 1 },
+  hour4: { scheduleMode: 'interval', intervalUnit: 'hour', intervalValue: 4 },
+  day1: { scheduleMode: 'interval', intervalUnit: 'day', intervalValue: 1 },
+  week1: { scheduleMode: 'interval', intervalUnit: 'week', intervalValue: 1 },
+};
+
+const INTERVAL_UNIT_MINUTES = {
+  minute: 1,
+  hour: 60,
+  day: 1440,
+  week: 10080,
+};
+
 export const PDF_SAVE_FORMATS = new Set(['pdf']);
 export const IMAGE_SAVE_FORMATS = new Set(['png', 'jpeg', 'webp']);
 export const PAGE_CAPTURE_FORMATS = new Set(['mhtml']);
@@ -55,6 +106,46 @@ export const DOM_SNAPSHOT_FORMATS = new Set(['html']);
 export function saveFormatLabel(value, locale = detectBrowserLocale()) {
   const format = SAVE_FORMATS.find((x) => x.value === value);
   return format ? t(format.labelKey, {}, locale) : String(value || '').toUpperCase();
+}
+
+export function normalizePdfOptions(raw = {}) {
+  const paperSize = PDF_PAPER_SIZE_MAP[raw.paperSize] ? raw.paperSize : 'a4';
+  const marginPreset = PDF_MARGIN_MAP[raw.marginPreset] ? raw.marginPreset : 'default';
+  return {
+    landscape: raw.landscape === true,
+    printBackground: raw.printBackground !== false,
+    paperSize,
+    marginPreset,
+  };
+}
+
+export function normalizeImageOptions(raw = {}) {
+  const jpegQuality = Math.max(1, Math.min(100, Number(raw.jpegQuality ?? 90) || 90));
+  return {
+    jpegQuality,
+  };
+}
+
+export function normalizeAuthOptions(raw = {}) {
+  return {
+    loginFailureUrlPattern: String(raw.loginFailureUrlPattern || '').trim(),
+    requiredSelectorType: raw.requiredSelectorType === 'xpath' ? 'xpath' : 'css',
+    requiredSelector: String(raw.requiredSelector || '').trim(),
+  };
+}
+
+export function hasAuthCheckConfigured(authOptions = {}) {
+  return Boolean(
+    String(authOptions.loginFailureUrlPattern || '').trim() ||
+    String(authOptions.requiredSelector || '').trim()
+  );
+}
+
+export function normalizeRetryOptions(raw = {}) {
+  return {
+    maxRetries: Math.max(0, Math.min(5, Number(raw.maxRetries ?? 0) || 0)),
+    retryDelayMs: Math.max(0, Number(raw.retryDelayMs ?? 1000) || 1000),
+  };
 }
 
 export const DEFAULT_APP_SETTINGS = {
@@ -140,17 +231,118 @@ function localDateTimeAt(timeText = '15:00', fromDate = new Date()) {
   return `${yyyy}-${mon}-${day}T${hour}:${minute}`;
 }
 
+function normalizePositiveInteger(value, fallback = 1) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.max(1, Math.round(parsed));
+}
+
+function normalizeMonthlyDay(value, fallback = 1) {
+  return Math.max(1, Math.min(31, normalizePositiveInteger(value, fallback)));
+}
+
+function dayOfMonthFromDateTime(value, fallback = 1) {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? fallback : d.getDate();
+}
+
 export function intervalMinutes(intervalKey) {
   const minutes = SCHEDULE_INTERVAL_MAP[intervalKey]?.minutes;
   return typeof minutes === 'number' && Number.isFinite(minutes) ? minutes : 1440;
 }
 
-export function scheduleLabel(schedule, locale = detectBrowserLocale()) {
-  const interval = t(
-    SCHEDULE_INTERVAL_MAP[schedule?.intervalKey]?.labelKey || 'shared.interval.day1',
-    {},
+function resolvedScheduleMode(schedule = {}) {
+  if (SCHEDULE_MODE_MAP[schedule.scheduleMode]) {
+    return schedule.scheduleMode;
+  }
+  return (LEGACY_INTERVAL_DEFAULTS[schedule.intervalKey] || LEGACY_INTERVAL_DEFAULTS.day1)
+    .scheduleMode;
+}
+
+function resolvedScheduleIntervalUnit(schedule = {}) {
+  if (SCHEDULE_INTERVAL_UNIT_MAP[schedule.intervalUnit]) {
+    return schedule.intervalUnit;
+  }
+  return (LEGACY_INTERVAL_DEFAULTS[schedule.intervalKey] || LEGACY_INTERVAL_DEFAULTS.day1)
+    .intervalUnit;
+}
+
+function resolvedScheduleIntervalValue(schedule = {}) {
+  if (
+    schedule.intervalValue !== undefined &&
+    schedule.intervalValue !== null &&
+    schedule.intervalValue !== ''
+  ) {
+    return normalizePositiveInteger(schedule.intervalValue, 1);
+  }
+  return (LEGACY_INTERVAL_DEFAULTS[schedule.intervalKey] || LEGACY_INTERVAL_DEFAULTS.day1)
+    .intervalValue;
+}
+
+function resolvedScheduleMonthlyDay(schedule = {}) {
+  return normalizeMonthlyDay(schedule.monthlyDay, dayOfMonthFromDateTime(schedule.startAt, 1));
+}
+
+function scheduleLegacyIntervalKey(schedule = {}) {
+  const scheduleMode = resolvedScheduleMode(schedule);
+  if (scheduleMode === 'once') {
+    return 'once';
+  }
+  if (scheduleMode === 'monthly') {
+    return 'monthly';
+  }
+  const intervalUnit = resolvedScheduleIntervalUnit(schedule);
+  const intervalValue = resolvedScheduleIntervalValue(schedule);
+  if (intervalUnit === 'minute' && intervalValue === 1) {
+    return 'minute1';
+  }
+  if (intervalUnit === 'minute' && intervalValue === 5) {
+    return 'minute5';
+  }
+  if (intervalUnit === 'minute' && intervalValue === 30) {
+    return 'minute30';
+  }
+  if (intervalUnit === 'hour' && intervalValue === 1) {
+    return 'hour1';
+  }
+  if (intervalUnit === 'hour' && intervalValue === 4) {
+    return 'hour4';
+  }
+  if (intervalUnit === 'day' && intervalValue === 1) {
+    return 'day1';
+  }
+  if (intervalUnit === 'week' && intervalValue === 1) {
+    return 'week1';
+  }
+  return 'custom';
+}
+
+function intervalUnitLabel(intervalUnit, intervalValue, locale = detectBrowserLocale()) {
+  const quantityKey = intervalValue === 1 ? 'one' : 'other';
+  return t(`shared.intervalUnit.${intervalUnit}.${quantityKey}`, {}, locale);
+}
+
+export function scheduleIntervalDescription(schedule, locale = detectBrowserLocale()) {
+  const scheduleMode = resolvedScheduleMode(schedule);
+  if (scheduleMode === 'once') {
+    return t('shared.interval.once', {}, locale);
+  }
+  if (scheduleMode === 'monthly') {
+    return t('shared.interval.monthlyDay', { day: resolvedScheduleMonthlyDay(schedule) }, locale);
+  }
+  const intervalValue = resolvedScheduleIntervalValue(schedule);
+  const intervalUnit = resolvedScheduleIntervalUnit(schedule);
+  return t(
+    'shared.interval.everyN',
+    { count: intervalValue, unit: intervalUnitLabel(intervalUnit, intervalValue, locale) },
     locale
   );
+}
+
+export function scheduleLabel(schedule, locale = detectBrowserLocale()) {
+  const interval = scheduleIntervalDescription(schedule, locale);
   if (!schedule?.startAt) {
     return t('shared.scheduleNotSet', { interval }, locale);
   }
@@ -161,6 +353,19 @@ export function scheduleLabel(schedule, locale = detectBrowserLocale()) {
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   return `${hh}:${mm} / ${interval}`;
+}
+
+export function executionStatusLabel(status, errorCode = '', locale = detectBrowserLocale()) {
+  if (errorCode === 'auth') {
+    return t('shared.runStatus.authError', {}, locale);
+  }
+  if (status === 'success') {
+    return t('shared.runStatus.success', {}, locale);
+  }
+  if (status === 'error') {
+    return t('shared.runStatus.error', {}, locale);
+  }
+  return String(status || '');
 }
 
 export function normalizeAppSettings(raw = {}) {
@@ -312,18 +517,41 @@ function migrateLegacySchedule(raw = {}) {
 
 export function normalizeSchedule(raw = {}, fallbackDateTime = localDateTimeAt('15:00')) {
   const migrated = migrateLegacySchedule(raw);
-  const intervalKey = SCHEDULE_INTERVAL_MAP[migrated.intervalKey] ? migrated.intervalKey : 'day1';
-  return {
+  const startAt = normalizeDateTimeLocal(migrated.startAt || fallbackDateTime);
+  const legacyDefaults =
+    LEGACY_INTERVAL_DEFAULTS[migrated.intervalKey] || LEGACY_INTERVAL_DEFAULTS.day1;
+  const scheduleMode = SCHEDULE_MODE_MAP[migrated.scheduleMode]
+    ? migrated.scheduleMode
+    : legacyDefaults.scheduleMode;
+  const intervalUnit = SCHEDULE_INTERVAL_UNIT_MAP[migrated.intervalUnit]
+    ? migrated.intervalUnit
+    : legacyDefaults.intervalUnit;
+  const intervalValue = normalizePositiveInteger(
+    migrated.intervalValue,
+    legacyDefaults.intervalValue
+  );
+  const monthlyDay = normalizeMonthlyDay(migrated.monthlyDay, dayOfMonthFromDateTime(startAt, 1));
+  const nextSchedule = {
     id: migrated.id || uid('sch'),
-    startAt: normalizeDateTimeLocal(migrated.startAt || fallbackDateTime),
-    intervalKey,
+    startAt,
+    scheduleMode,
+    intervalUnit,
+    intervalValue,
+    monthlyDay,
     endAt: normalizeDateTimeLocal(migrated.endAt || ''),
     enabled: migrated.enabled !== false,
+  };
+  return {
+    ...nextSchedule,
+    intervalKey: scheduleLegacyIntervalKey(nextSchedule),
   };
 }
 
 export function createDefaultSchedule(startAt = localDateTimeAt('15:00')) {
-  return normalizeSchedule({ startAt, intervalKey: 'day1' }, startAt);
+  return normalizeSchedule(
+    { startAt, scheduleMode: 'interval', intervalValue: 1, intervalUnit: 'day' },
+    startAt
+  );
 }
 
 export function normalizeItem(raw = {}) {
@@ -331,15 +559,26 @@ export function normalizeItem(raw = {}) {
   const hasOwn = (key) => Object.prototype.hasOwnProperty.call(raw, key);
   const downloadFolderSource = hasOwn('downloadFolder') ? raw.downloadFolder : '';
   const filenamePrefixSource = hasOwn('filenamePrefix') ? raw.filenamePrefix : '';
+  const pdfOptionsSource = hasOwn('pdfOptions') ? raw.pdfOptions : {};
+  const imageOptionsSource = hasOwn('imageOptions') ? raw.imageOptions : {};
+  const authOptionsSource = hasOwn('authOptions') ? raw.authOptions : {};
+  const retryOptionsSource = hasOwn('retryOptions') ? raw.retryOptions : {};
   const schedulesRaw =
     Array.isArray(raw.schedules) && raw.schedules.length > 0
       ? raw.schedules
-      : [{ startAt: localDateTimeAt(raw.scheduleTime || '15:00'), intervalKey: 'day1' }];
+      : [
+          {
+            startAt: localDateTimeAt(raw.scheduleTime || '15:00'),
+            scheduleMode: 'interval',
+            intervalValue: 1,
+            intervalUnit: 'day',
+          },
+        ];
   const schedules = schedulesRaw.map((x, idx) =>
     normalizeSchedule(x, idx === 0 ? localDateTimeAt('15:00') : localDateTimeAt('15:00'))
   );
   if (schedules.length === 0) {
-    schedules.push(createDefaultSchedule(1));
+    schedules.push(createDefaultSchedule(localDateTimeAt('15:00')));
   }
 
   return {
@@ -363,6 +602,10 @@ export function normalizeItem(raw = {}) {
       0,
       raw.waitAfterActionsMs === '' ? 1000 : Number(raw.waitAfterActionsMs ?? 1000) || 1000
     ),
+    pdfOptions: normalizePdfOptions(pdfOptionsSource),
+    imageOptions: normalizeImageOptions(imageOptionsSource),
+    authOptions: normalizeAuthOptions(authOptionsSource),
+    retryOptions: normalizeRetryOptions(retryOptionsSource),
     actions,
   };
 }
@@ -374,7 +617,15 @@ export function createBlankItem(itemNumber = 1, locale = detectBrowserLocale()) 
     enabled: true,
     url: '',
     saveFormat: 'mhtml',
-    schedules: [{ startAt: localDateTimeAt('15:00'), intervalKey: 'day1', endAt: '' }],
+    schedules: [
+      {
+        startAt: localDateTimeAt('15:00'),
+        scheduleMode: 'interval',
+        intervalValue: 1,
+        intervalUnit: 'day',
+        endAt: '',
+      },
+    ],
     downloadFolder: '',
     filenamePrefix: '',
     actions: [],
@@ -391,7 +642,15 @@ export function createDefaultDailyPdfItem(locale = detectBrowserLocale()) {
     enabled: false,
     url: 'https://www.wikipedia.org/',
     saveFormat: 'pdf',
-    schedules: [{ startAt: localDateTimeAt('21:00'), intervalKey: 'day1', endAt: '' }],
+    schedules: [
+      {
+        startAt: localDateTimeAt('21:00'),
+        scheduleMode: 'interval',
+        intervalValue: 1,
+        intervalUnit: 'day',
+        endAt: '',
+      },
+    ],
     downloadFolder: '',
     filenamePrefix: '',
     closeTabAfterSave: true,
@@ -408,7 +667,15 @@ export function createDefaultScreenshotItem(locale = detectBrowserLocale()) {
     enabled: false,
     url: 'https://www.billboard.com/charts/',
     saveFormat: 'png',
-    schedules: [{ startAt: localDateTimeAt('21:15'), intervalKey: 'day1', endAt: '' }],
+    schedules: [
+      {
+        startAt: localDateTimeAt('21:15'),
+        scheduleMode: 'interval',
+        intervalValue: 1,
+        intervalUnit: 'day',
+        endAt: '',
+      },
+    ],
     downloadFolder: '',
     filenamePrefix: '',
     closeTabAfterSave: true,
@@ -425,7 +692,15 @@ export function createDefaultArchiveItem(locale = detectBrowserLocale()) {
     enabled: false,
     url: 'https://news.ycombinator.com/',
     saveFormat: 'mhtml',
-    schedules: [{ startAt: localDateTimeAt('21:30'), intervalKey: 'day1', endAt: '' }],
+    schedules: [
+      {
+        startAt: localDateTimeAt('21:30'),
+        scheduleMode: 'interval',
+        intervalValue: 1,
+        intervalUnit: 'day',
+        endAt: '',
+      },
+    ],
     downloadFolder: '',
     filenamePrefix: '',
     closeTabAfterSave: true,
@@ -501,6 +776,18 @@ export function localYmd(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+function daysInMonth(year, monthIndex) {
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+function buildMonthlyCandidate(anchor, year, monthIndex, monthlyDay) {
+  const candidate = new Date(anchor);
+  candidate.setSeconds(0, 0);
+  candidate.setFullYear(year, monthIndex, 1);
+  candidate.setDate(Math.min(monthlyDay, daysInMonth(year, monthIndex)));
+  return candidate;
+}
+
 export function nextOccurrenceForSchedule(schedule, fromDate = new Date()) {
   if (!schedule || schedule.enabled === false) {
     return null;
@@ -516,12 +803,32 @@ export function nextOccurrenceForSchedule(schedule, fromDate = new Date()) {
   }
 
   let next = new Date(anchor);
-  if (schedule.intervalKey === 'once') {
+  const scheduleMode = resolvedScheduleMode(schedule);
+  if (scheduleMode === 'once') {
     if (next.getTime() < now.getTime()) {
       return null;
     }
+  } else if (scheduleMode === 'monthly') {
+    if (next.getTime() < now.getTime()) {
+      const monthlyDay = resolvedScheduleMonthlyDay(schedule);
+      let year = now.getFullYear();
+      let monthIndex = now.getMonth();
+      next = buildMonthlyCandidate(anchor, year, monthIndex, monthlyDay);
+      while (next.getTime() < now.getTime() || next.getTime() < anchor.getTime()) {
+        monthIndex += 1;
+        if (monthIndex > 11) {
+          monthIndex = 0;
+          year += 1;
+        }
+        next = buildMonthlyCandidate(anchor, year, monthIndex, monthlyDay);
+      }
+    }
   } else {
-    const intervalMs = intervalMinutes(schedule.intervalKey) * 60 * 1000;
+    const intervalMs =
+      resolvedScheduleIntervalValue(schedule) *
+      (INTERVAL_UNIT_MINUTES[resolvedScheduleIntervalUnit(schedule)] || 1440) *
+      60 *
+      1000;
     if (next.getTime() < now.getTime()) {
       const diff = now.getTime() - next.getTime();
       const steps = Math.floor(diff / intervalMs) + 1;
@@ -634,7 +941,7 @@ export function summarizeItem(item, locale = detectBrowserLocale()) {
       }
     })(),
     nextLabel: next
-      ? `${formatDateTime(next.at.toISOString(), locale)} / ${t(SCHEDULE_INTERVAL_MAP[next.schedule.intervalKey]?.labelKey || 'shared.interval.day1', {}, locale)}`
+      ? `${formatDateTime(next.at.toISOString(), locale)} / ${scheduleIntervalDescription(next.schedule, locale)}`
       : t('shared.timeUnset', {}, locale),
     scheduleCount: Array.isArray(item.schedules) ? item.schedules.length : 0,
   };
@@ -721,15 +1028,37 @@ export function validateItem(item, locale = detectBrowserLocale()) {
   if (!first || !String(first.startAt || '').trim()) {
     errors.push(t('validation.startAtRequired', {}, locale));
   }
-  if (!first || !String(first.intervalKey || '').trim()) {
-    errors.push(t('validation.intervalRequired', {}, locale));
+  if (!first || !String(first.scheduleMode || '').trim()) {
+    errors.push(t('validation.scheduleModeRequired', { index: 1 }, locale));
   }
   schedules.forEach((schedule, index) => {
     if (!String(schedule.startAt || '').trim()) {
       errors.push(t('validation.scheduleStartAtRequired', { index: index + 1 }, locale));
     }
-    if (!String(schedule.intervalKey || '').trim()) {
-      errors.push(t('validation.scheduleIntervalRequired', { index: index + 1 }, locale));
+    if (!String(schedule.scheduleMode || '').trim()) {
+      errors.push(t('validation.scheduleModeRequired', { index: index + 1 }, locale));
+    }
+    if (resolvedScheduleMode(schedule) === 'interval') {
+      if (!String(schedule.intervalUnit || '').trim()) {
+        errors.push(t('validation.scheduleIntervalUnitRequired', { index: index + 1 }, locale));
+      }
+      if (
+        schedule.intervalValue === '' ||
+        !Number.isFinite(Number(schedule.intervalValue)) ||
+        Number(schedule.intervalValue) < 1
+      ) {
+        errors.push(t('validation.scheduleIntervalValueRequired', { index: index + 1 }, locale));
+      }
+    }
+    if (resolvedScheduleMode(schedule) === 'monthly') {
+      if (
+        schedule.monthlyDay === '' ||
+        !Number.isFinite(Number(schedule.monthlyDay)) ||
+        Number(schedule.monthlyDay) < 1 ||
+        Number(schedule.monthlyDay) > 31
+      ) {
+        errors.push(t('validation.scheduleMonthlyDayInvalid', { index: index + 1 }, locale));
+      }
     }
     if (schedule.startAt && schedule.endAt) {
       const s = new Date(schedule.startAt);

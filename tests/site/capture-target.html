@@ -54,6 +54,12 @@
     </main>
 
     <script>
+      const params = new URLSearchParams(location.search);
+      const retryReadyVisit = Math.max(1, Number(params.get('retryReadyVisit') || '1') || 1);
+      const visitKey = `apc:test-visit:${location.pathname}${location.search}`;
+      const visitCount = Number(localStorage.getItem(visitKey) || '0') + 1;
+      localStorage.setItem(visitKey, String(visitCount));
+
       const statusText = document.getElementById('status-text');
       const activateButton = document.getElementById('activate-workflow');
       const continueButton = document.getElementById('continue-button');
@@ -63,6 +69,11 @@
         statusText.textContent = 'Preparing';
 
         setTimeout(() => {
+          if (visitCount < retryReadyVisit) {
+            statusText.textContent = 'Waiting for retry';
+            statusText.dataset.ready = 'false';
+            return;
+          }
           statusText.textContent = 'Ready';
           statusText.dataset.ready = 'true';
           continueButton.classList.remove('hidden');

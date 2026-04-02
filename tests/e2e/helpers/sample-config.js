@@ -327,3 +327,126 @@ export function buildAlarmSeedState(baseURL) {
     },
   };
 }
+
+export function buildRetrySeedState(baseURL) {
+  return {
+    settingsVersion: 11,
+    items: [
+      {
+        id: 'item_retry_success',
+        name: 'Retry capture target',
+        description: 'Succeeds on the second attempt after a transient capture failure.',
+        enabled: true,
+        url: `${baseURL}/capture-target.html`,
+        saveFormat: 'mhtml',
+        schedules: [
+          {
+            id: 'schedule_retry_success',
+            startAt: '2030-03-04T09:30',
+            scheduleMode: 'interval',
+            intervalValue: 1,
+            intervalUnit: 'day',
+            endAt: '',
+            enabled: true,
+          },
+        ],
+        downloadFolder: '',
+        filenamePrefix: 'retry-capture',
+        closeTabAfterSave: true,
+        waitBeforeActionsMs: 100,
+        waitAfterActionsMs: 100,
+        retryOptions: {
+          maxRetries: 1,
+          retryDelayMs: 100,
+        },
+        actions: [],
+      },
+    ],
+    recentHistory: [],
+    logs: [],
+    lastRunByItem: {},
+    appSettings: {
+      logLimit: 300,
+      uiLanguage: 'en',
+    },
+  };
+}
+
+export function buildAuthFailureSeedState(baseURL) {
+  return {
+    settingsVersion: 10,
+    items: [
+      {
+        id: 'item_auth_failure',
+        name: 'Protected capture target',
+        description: 'Item used to render an authentication failure in history and logs.',
+        enabled: true,
+        url: `${baseURL}/capture-target.html`,
+        saveFormat: 'html',
+        schedules: [
+          {
+            id: 'schedule_auth_failure',
+            startAt: '2030-03-05T11:00',
+            scheduleMode: 'interval',
+            intervalValue: 1,
+            intervalUnit: 'day',
+            endAt: '',
+            enabled: true,
+          },
+        ],
+        downloadFolder: '',
+        filenamePrefix: 'auth-failure',
+        closeTabAfterSave: true,
+        waitBeforeActionsMs: 100,
+        waitAfterActionsMs: 100,
+        authOptions: {
+          loginFailureUrlPattern: '/login',
+          requiredSelectorType: 'css',
+          requiredSelector: '.account-menu',
+        },
+        actions: [],
+      },
+    ],
+    recentHistory: [
+      {
+        id: 'hist_auth_failure',
+        itemId: 'item_auth_failure',
+        itemName: 'Protected capture target',
+        status: 'error',
+        errorCode: 'auth',
+        trigger: 'manual',
+        at: '2030-03-05T11:02:00.000Z',
+        filename: '',
+        message: 'Authentication expired: required selector was not found (.account-menu).',
+      },
+    ],
+    logs: [
+      {
+        id: 'log_auth_failure',
+        itemId: 'item_auth_failure',
+        itemName: 'Protected capture target',
+        status: 'error',
+        errorCode: 'auth',
+        trigger: 'manual',
+        at: '2030-03-05T11:02:00.000Z',
+        filename: '',
+        message: 'Authentication expired: required selector was not found (.account-menu).',
+      },
+    ],
+    lastRunByItem: {
+      item_auth_failure: {
+        at: '2030-03-05T11:02:00.000Z',
+        ymd: '2030-03-05',
+        status: 'error',
+        errorCode: 'auth',
+        trigger: 'manual',
+        filename: '',
+        message: 'Authentication expired: required selector was not found (.account-menu).',
+      },
+    },
+    appSettings: {
+      logLimit: 300,
+      uiLanguage: 'en',
+    },
+  };
+}
