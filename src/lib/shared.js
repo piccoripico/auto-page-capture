@@ -718,12 +718,46 @@ export function getDefaultItems(locale = detectBrowserLocale()) {
   ];
 }
 
+export function isFileUrl(urlText) {
+  try {
+    return new URL(urlText).protocol === 'file:';
+  } catch {
+    return false;
+  }
+}
+
+export function canRequestOriginPermission(urlText) {
+  try {
+    const protocol = new URL(urlText).protocol;
+    return protocol === 'https:' || protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 export function deriveOriginPattern(urlText) {
   const url = new URL(urlText);
+  if (url.protocol === 'file:') {
+    return 'file:///*';
+  }
   if (!(url.protocol === 'https:' || url.protocol === 'http:')) {
-    throw new Error('Only http/https URLs are supported.');
+    throw new Error('Only http/https/file URLs are supported.');
   }
   return `${url.protocol}//${url.host}/*`;
+}
+
+export async function isFileSchemeAccessAllowed() {
+  const extensionApi = globalThis.chrome?.extension;
+  if (!extensionApi?.isAllowedFileSchemeAccess) {
+    return false;
+  }
+  return await new Promise((resolve) => {
+    try {
+      extensionApi.isAllowedFileSchemeAccess((allowed) => resolve(Boolean(allowed)));
+    } catch {
+      resolve(false);
+    }
+  });
 }
 
 export function fileExtensionFor(format) {
@@ -935,7 +969,11 @@ export function summarizeItem(item, locale = detectBrowserLocale()) {
   return {
     host: (() => {
       try {
-        return item.url ? new URL(item.url).host : t('shared.hostUnset', {}, locale);
+        if (!item.url) {
+          return t('shared.hostUnset', {}, locale);
+        }
+        const url = new URL(item.url);
+        return url.protocol === 'file:' ? t('shared.hostFile', {}, locale) : url.host;
       } catch {
         return t('shared.hostInvalid', {}, locale);
       }
@@ -1014,7 +1052,7 @@ export function validateItem(item, locale = detectBrowserLocale()) {
     try {
       deriveOriginPattern(item.url);
     } catch {
-      errors.push(t('validation.urlHttpOnly', {}, locale));
+      errors.push(t('validation.urlSupportedSchemes', {}, locale));
     }
   }
   if (!String(item.saveFormat || '').trim()) {

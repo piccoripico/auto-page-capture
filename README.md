@@ -31,6 +31,9 @@ This extension is built for that workflow:
 - Optional login checks before saving:
   - detect redirects to login URLs
   - confirm a signed-in marker element exists
+- Local file URL support:
+  - `file://` targets can be registered
+  - requires the browser's `Allow access to file URLs` setting for this extension
 - Optional retry for transient failures:
   - retry timeouts and temporary capture interruptions
   - keep permission and authentication failures as immediate errors
@@ -90,6 +93,7 @@ The extension uses these permissions for the following reasons:
 - `pageCapture`: create MHTML captures
 - `debugger`: create PDF and full-page image captures
 - `optional_host_permissions`: request site access only for target origins you register
+- `file://` URLs also require the extension details setting `Allow access to file URLs`
 
 ## Typical Flow
 

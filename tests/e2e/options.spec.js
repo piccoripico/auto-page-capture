@@ -1,4 +1,8 @@
-import { buildAlarmSeedState, buildSeedState } from './helpers/sample-config.js';
+import {
+  buildAlarmSeedState,
+  buildFileUrlSeedState,
+  buildSeedState,
+} from './helpers/sample-config.js';
 import { expect, test } from './fixtures/extension.js';
 
 test.describe('options page', () => {
@@ -366,5 +370,38 @@ test.describe('options page', () => {
       maxRetries: 2,
       retryDelayMs: 1500,
     });
+  });
+
+  test('accepts file URLs and shows file access guidance', async ({
+    extensionId,
+    page,
+    readExtensionState,
+    resetExtensionState,
+  }) => {
+    await page.addInitScript(() => {
+      chrome.extension.isAllowedFileSchemeAccess = (callback) => callback(false);
+    });
+
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/options.html`);
+    await resetExtensionState(buildFileUrlSeedState());
+    await page.reload();
+
+    await expect(page.locator('#url-input')).toHaveValue(
+      'file:///tmp/auto-page-capture-sample.html'
+    );
+    await expect(page.locator('.warning-box')).toContainText('Allow access to file URLs');
+    await expect(page.locator('#grant-inline')).toBeDisabled();
+    await expect(page.locator('#revoke-inline')).toBeDisabled();
+
+    await page.locator('#url-input').fill('file:///tmp/auto-page-capture-updated.html');
+    await page.locator('#url-input').blur();
+    await expect(page.locator('#save-all')).toBeEnabled();
+    await page.locator('#save-all').click();
+    await expect(page.locator('#save-all')).toBeDisabled();
+
+    const stored = await readExtensionState(['items']);
+    expect(stored.items[0].url).toBe('file:///tmp/auto-page-capture-updated.html');
   });
 });

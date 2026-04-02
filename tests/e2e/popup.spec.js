@@ -1,6 +1,7 @@
 import {
   buildActionRunSeedState,
   buildAuthFailureSeedState,
+  buildFileUrlSeedState,
   buildRetrySeedState,
   buildSeedState,
 } from './helpers/sample-config.js';
@@ -187,5 +188,39 @@ test.describe('popup page', () => {
 
     const downloadedFiles = await listDownloadedFiles();
     expect(downloadedFiles.length).toBeGreaterThan(0);
+  });
+
+  test('guides the user when file URL access is not enabled', async ({
+    extensionId,
+    page,
+    resetExtensionState,
+    serviceWorkerEval,
+  }) => {
+    await page.addInitScript(() => {
+      chrome.extension.isAllowedFileSchemeAccess = (callback) => callback(false);
+    });
+
+    await serviceWorkerEval(async () => {
+      chrome.extension.isAllowedFileSchemeAccess = (callback) => callback(false);
+    });
+
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/popup.html?mode=window`);
+    await resetExtensionState(buildFileUrlSeedState());
+    await page.locator('#refresh').click();
+
+    await expect(page.locator('#summary-needs')).toHaveText('1');
+    const row = page.locator('#items .item-row').first();
+    await expect(row).toContainText('Local file capture');
+
+    await row.getByRole('button', { name: 'How to enable' }).click();
+    await expect(page.locator('#status')).toContainText('Allow access to file URLs');
+
+    const result = await page.evaluate(async () => {
+      return await chrome.runtime.sendMessage({ type: 'run-item-now', itemId: 'item_file_url' });
+    });
+    expect(result.ok).toBe(false);
+    expect(result.entry.message).toContain('Allow access to file URLs');
   });
 });
