@@ -8,6 +8,7 @@
     "format:check": "prettier . --check",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "package": "node scripts/package-extension.mjs",
     "test": "playwright test",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
