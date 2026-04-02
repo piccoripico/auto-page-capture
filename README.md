@@ -156,6 +156,14 @@ Format the project:
 npm run format
 ```
 
+Create a release zip from the contents of `src/`:
+
+```bash
+npm run package
+```
+
+The archive is written to `dist/` and contains the extension files at the zip root, not an extra `src/` folder.
+
 ## Testing
 
 Run the default automated Playwright suite:
