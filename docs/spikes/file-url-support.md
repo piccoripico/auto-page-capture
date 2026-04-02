@@ -8,7 +8,7 @@ Evaluate whether Auto Page Capture can support `file://` URLs in a practical way
 
 `file://` support looks feasible, but only with an explicit user action in the browser's extension details page.
 
-- Chrome allows `file` match patterns such as `file:///`.
+- Chrome allows `file` match patterns such as `file:///*`.
 - Access to `file://` is not automatic, even if the extension declares the pattern.
 - Since Chrome 118, opening `file://` with `chrome.tabs` or `chrome.windows` also requires the browser-level "Allow access to file URLs" toggle.
 - The extension can detect that state with `chrome.extension.isAllowedFileSchemeAccess()`.
@@ -55,10 +55,10 @@ The current codebase is explicitly limited to `http` and `https`.
 ## Recommended MVP implementation
 
 1. Manifest
-   - Add `file:///` to `optional_host_permissions`.
+   - Add `file:///*` to `optional_host_permissions`.
 
 2. Shared URL handling
-   - Update `deriveOriginPattern()` to accept `file:` and return `file:///`.
+   - Update `deriveOriginPattern()` to accept `file:` and return `file:///*`.
    - Update validation text from `http/https only` to `http/https/file`.
 
 3. Permission UX

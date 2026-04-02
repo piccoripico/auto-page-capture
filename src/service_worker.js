@@ -9,6 +9,8 @@ import {
   fileExtensionFor,
   hasAuthCheckConfigured,
   IMAGE_SAVE_FORMATS,
+  isFileSchemeAccessAllowed,
+  isFileUrl,
   itemNextOccurrence,
   loadConfig,
   localYmd,
@@ -148,6 +150,16 @@ async function appendLog(entry) {
 
 async function ensureHostPermissionForItem(item) {
   const origin = deriveOriginPattern(item.url);
+  if (isFileUrl(item.url)) {
+    const hasFileAccess = await isFileSchemeAccessAllowed();
+    if (!hasFileAccess) {
+      throw createExecutionError(
+        'permission',
+        'Allow access to file URLs is not enabled. Open the extension details page and enable it.'
+      );
+    }
+    return;
+  }
   const hasPermission = await chrome.permissions.contains({ origins: [origin] });
   if (!hasPermission) {
     throw createExecutionError('permission', `Site access is not granted for ${origin}`);

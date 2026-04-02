@@ -8,8 +8,11 @@ import {
   createBlankItem,
   deepClone,
   deriveOriginPattern,
+  canRequestOriginPermission,
   executionStatusLabel,
   formatDateTime,
+  isFileSchemeAccessAllowed,
+  isFileUrl,
   loadConfig,
   normalizeAction,
   normalizeAppSettings,
@@ -197,6 +200,10 @@ async function refreshPermissions() {
     try {
       if (!item.url) {
         map[item.id] = false;
+        continue;
+      }
+      if (isFileUrl(item.url)) {
+        map[item.id] = await isFileSchemeAccessAllowed();
         continue;
       }
       const origin = deriveOriginPattern(item.url);
@@ -629,7 +636,8 @@ function renderDetail() {
   detailPanel?.classList.toggle('item-disabled', item.enabled === false);
   const validation = state.validationMap[item.id] || validateItem(item, locale);
   const permissionMissing = !state.permissionMap[item.id] && !!item.url;
-  const permissionResolvable = Boolean(item.url);
+  const fileUrl = isFileUrl(item.url);
+  const permissionResolvable = Boolean(item.url) && canRequestOriginPermission(item.url);
   const formatOptions = SAVE_FORMATS.map(
     (x) =>
       `<option value="${x.value}" ${x.value === item.saveFormat ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
@@ -652,10 +660,22 @@ function renderDetail() {
           ? `
         <div class="warning-box">
           <div>
-            <strong>${escapeHtml(t('permission.title', {}, locale))}</strong>
-            <div>${escapeHtml(t('permission.body', { url: item.url }, locale))}</div>
+            <strong>${escapeHtml(
+              t(fileUrl ? 'permission.fileAccessTitle' : 'permission.title', {}, locale)
+            )}</strong>
+            <div>${escapeHtml(
+              t(
+                fileUrl ? 'permission.fileAccessBody' : 'permission.body',
+                fileUrl ? {} : { url: item.url },
+                locale
+              )
+            )}</div>
           </div>
-          <button id="grant-top">${escapeHtml(t('permission.grantTop', {}, locale))}</button>
+          ${
+            fileUrl
+              ? ''
+              : `<button id="grant-top">${escapeHtml(t('permission.grantTop', {}, locale))}</button>`
+          }
         </div>`
           : ''
       }
@@ -705,6 +725,11 @@ function renderDetail() {
           <button id="grant-inline" ${!permissionMissing || !permissionResolvable ? 'disabled' : ''}>${escapeHtml(t('common.grant', {}, locale))}</button>
           <button id="revoke-inline" class="ghost" ${permissionMissing || !permissionResolvable ? 'disabled' : ''}>${escapeHtml(t('common.revoke', {}, locale))}</button>
         </div>
+        ${
+          fileUrl
+            ? `<div class="small-text" style="margin-top:8px">${escapeHtml(t('permission.fileAccessBody', {}, locale))}</div>`
+            : ''
+        }
       </section>
 
       ${renderAuthSettings(item, locale)}
@@ -749,6 +774,10 @@ async function loadAll() {
 
 async function requestPermission(item) {
   try {
+    if (isFileUrl(item.url)) {
+      setStatus(t('permission.fileAccessBody', {}, currentLocale()), true);
+      return;
+    }
     const origin = deriveOriginPattern(item.url);
     const ok = await chrome.permissions.request({ origins: [origin] });
     await refreshPermissions();
@@ -766,6 +795,10 @@ async function requestPermission(item) {
 
 async function revokePermission(item) {
   try {
+    if (isFileUrl(item.url)) {
+      setStatus(t('permission.fileAccessBody', {}, currentLocale()), true);
+      return;
+    }
     const origin = deriveOriginPattern(item.url);
     const ok = await chrome.permissions.remove({ origins: [origin] });
     await refreshPermissions();

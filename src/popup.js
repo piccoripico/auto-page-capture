@@ -1,6 +1,9 @@
 import {
+  deriveOriginPattern,
   executionStatusLabel,
   formatDateTime,
+  isFileSchemeAccessAllowed,
+  isFileUrl,
   itemNextOccurrence,
   loadConfig,
   saveFormatLabel,
@@ -47,8 +50,10 @@ async function permissionMissing(item) {
     if (!item.url) {
       return false;
     }
-    const url = new URL(item.url);
-    const origin = `${url.protocol}//${url.host}/*`;
+    if (isFileUrl(item.url)) {
+      return !(await isFileSchemeAccessAllowed());
+    }
+    const origin = deriveOriginPattern(item.url);
     return !(await chrome.permissions.contains({ origins: [origin] }));
   } catch {
     return false;
@@ -100,21 +105,30 @@ async function render() {
     actions.className = 'item-actions';
 
     if (permissionMap[item.id]) {
-      const grantButton = document.createElement('button');
-      grantButton.textContent = t('permission.grantTop', {}, locale);
-      grantButton.addEventListener('click', async () => {
-        try {
-          const u = new URL(item.url);
-          const ok = await chrome.permissions.request({ origins: [`${u.protocol}//${u.host}/*`] });
-          if (!ok) {
-            setStatus(t('status.permissionDenied', {}, locale), true);
+      if (isFileUrl(item.url)) {
+        const helpButton = document.createElement('button');
+        helpButton.textContent = t('permission.fileAccessAction', {}, locale);
+        helpButton.addEventListener('click', () => {
+          setStatus(t('permission.fileAccessBody', {}, locale), true);
+        });
+        actions.append(helpButton);
+      } else {
+        const grantButton = document.createElement('button');
+        grantButton.textContent = t('permission.grantTop', {}, locale);
+        grantButton.addEventListener('click', async () => {
+          try {
+            const origin = deriveOriginPattern(item.url);
+            const ok = await chrome.permissions.request({ origins: [origin] });
+            if (!ok) {
+              setStatus(t('status.permissionDenied', {}, locale), true);
+            }
+            await render();
+          } catch (error) {
+            setStatus(error.message || String(error), true);
           }
-          await render();
-        } catch (error) {
-          setStatus(error.message || String(error), true);
-        }
-      });
-      actions.append(grantButton);
+        });
+        actions.append(grantButton);
+      }
     } else {
       const runButton = document.createElement('button');
       runButton.className = 'primary';

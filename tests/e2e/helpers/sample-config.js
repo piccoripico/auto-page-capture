@@ -372,6 +372,46 @@ export function buildRetrySeedState(baseURL) {
   };
 }
 
+export function buildFileUrlSeedState(fileUrl = 'file:///tmp/auto-page-capture-sample.html') {
+  return {
+    settingsVersion: 11,
+    items: [
+      {
+        id: 'item_file_url',
+        name: 'Local file capture',
+        description: 'Item used to exercise file URL validation and permission guidance.',
+        enabled: true,
+        url: fileUrl,
+        saveFormat: 'html',
+        schedules: [
+          {
+            id: 'schedule_file_url',
+            startAt: '2030-03-06T10:00',
+            scheduleMode: 'interval',
+            intervalValue: 1,
+            intervalUnit: 'day',
+            endAt: '',
+            enabled: true,
+          },
+        ],
+        downloadFolder: '',
+        filenamePrefix: 'local-file-capture',
+        closeTabAfterSave: true,
+        waitBeforeActionsMs: 100,
+        waitAfterActionsMs: 100,
+        actions: [],
+      },
+    ],
+    recentHistory: [],
+    logs: [],
+    lastRunByItem: {},
+    appSettings: {
+      logLimit: 300,
+      uiLanguage: 'en',
+    },
+  };
+}
+
 export function buildAuthFailureSeedState(baseURL) {
   return {
     settingsVersion: 10,
