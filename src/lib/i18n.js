@@ -129,7 +129,7 @@ const JA = {
   'groups.output': '出力設定',
   'groups.recovery': '失敗時の再試行',
   'groups.recoveryHelp':
-    'タイムアウトなどの一時失敗だけを対象に、保存処理を再試行します。権限不足や認証切れは再試行しません。',
+    'タイムアウトなどの一時失敗だけを対象に、保存処理を再試行します。権限不足は再試行しません。',
   'groups.schedule': '実行時刻',
   'header.exportItems': 'アイテム一覧出力',
   'header.importItems': 'アイテム一覧取込',
@@ -418,7 +418,7 @@ const EN = {
   'groups.output': 'Output settings',
   'groups.recovery': 'Retry on failure',
   'groups.recoveryHelp':
-    'Retries only transient failures such as timeouts. Permission and authentication errors are not retried.',
+    'Retries only transient failures such as timeouts. Permission errors are not retried.',
   'groups.schedule': 'Schedule',
   'header.exportItems': 'Export items',
   'header.importItems': 'Import items',

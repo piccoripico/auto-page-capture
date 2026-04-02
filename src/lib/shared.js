@@ -134,13 +134,6 @@ export function normalizeAuthOptions(raw = {}) {
   };
 }
 
-export function hasAuthCheckConfigured(authOptions = {}) {
-  return Boolean(
-    String(authOptions.loginFailureUrlPattern || '').trim() ||
-    String(authOptions.requiredSelector || '').trim()
-  );
-}
-
 export function normalizeRetryOptions(raw = {}) {
   return {
     maxRetries: Math.max(0, Math.min(5, Number(raw.maxRetries ?? 0) || 0)),

@@ -309,39 +309,6 @@ test.describe('options page', () => {
     expect(monthlyComputation.nextLocal).toBe('2026-02-28T08:15');
   });
 
-  test('persists login-check settings after save', async ({
-    baseURL,
-    extensionId,
-    page,
-    readExtensionState,
-    resetExtensionState,
-  }) => {
-    await resetExtensionState();
-
-    await page.goto(`chrome-extension://${extensionId}/options.html`);
-    await resetExtensionState(buildSeedState(baseURL));
-    await page.reload();
-
-    await page.locator('#auth-url-pattern').fill('/login');
-    await page.locator('#auth-selector-type').selectOption('xpath');
-    await page.locator('#auth-selector').fill('//nav[@data-user]');
-    await page.locator('#save-all').click();
-
-    await expect(page.locator('#save-all')).toBeDisabled();
-    await page.reload();
-
-    await expect(page.locator('#auth-url-pattern')).toHaveValue('/login');
-    await expect(page.locator('#auth-selector-type')).toHaveValue('xpath');
-    await expect(page.locator('#auth-selector')).toHaveValue('//nav[@data-user]');
-
-    const stored = await readExtensionState(['items']);
-    expect(stored.items[0].authOptions).toEqual({
-      loginFailureUrlPattern: '/login',
-      requiredSelectorType: 'xpath',
-      requiredSelector: '//nav[@data-user]',
-    });
-  });
-
   test('persists retry settings after save', async ({
     baseURL,
     extensionId,

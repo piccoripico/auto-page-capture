@@ -7,7 +7,6 @@ import {
   deriveOriginPattern,
   DOM_SNAPSHOT_FORMATS,
   fileExtensionFor,
-  hasAuthCheckConfigured,
   IMAGE_SAVE_FORMATS,
   isFileSchemeAccessAllowed,
   isFileUrl,
@@ -163,68 +162,6 @@ async function ensureHostPermissionForItem(item) {
   const hasPermission = await chrome.permissions.contains({ origins: [origin] });
   if (!hasPermission) {
     throw createExecutionError('permission', `Site access is not granted for ${origin}`);
-  }
-}
-
-function checkSelectorInPage(selectorType = 'css', selector = '') {
-  function findByXPath(xpath) {
-    const result = document.evaluate(
-      xpath,
-      document,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE,
-      null
-    );
-    return result.singleNodeValue;
-  }
-
-  try {
-    const target =
-      selectorType === 'xpath' ? findByXPath(selector) : document.querySelector(selector);
-    return { ok: Boolean(target) };
-  } catch (error) {
-    return { ok: false, error: error?.message || String(error) };
-  }
-}
-
-async function verifyAuthenticatedState(tabId, item) {
-  const authOptions = item.authOptions || {};
-  if (!hasAuthCheckConfigured(authOptions)) {
-    return;
-  }
-
-  const tab = await chrome.tabs.get(tabId);
-  const currentUrl = String(tab?.url || '');
-  const loginFailureUrlPattern = String(authOptions.loginFailureUrlPattern || '').trim();
-  if (loginFailureUrlPattern && currentUrl.includes(loginFailureUrlPattern)) {
-    throw createExecutionError(
-      'auth',
-      `Authentication expired: redirected to a URL containing "${loginFailureUrlPattern}".`
-    );
-  }
-
-  const requiredSelector = String(authOptions.requiredSelector || '').trim();
-  if (!requiredSelector) {
-    return;
-  }
-
-  const results = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: checkSelectorInPage,
-    args: [authOptions.requiredSelectorType || 'css', requiredSelector],
-  });
-  const result = results?.[0]?.result || { ok: false };
-  if (result.error) {
-    throw createExecutionError(
-      'auth',
-      `Authentication check failed: selector could not be evaluated (${result.error}).`
-    );
-  }
-  if (!result.ok) {
-    throw createExecutionError(
-      'auth',
-      `Authentication expired: required selector was not found (${requiredSelector}).`
-    );
   }
 }
 
@@ -786,7 +723,7 @@ function summarizeActionLog(actionLog = []) {
 
 function isRetryableError(error) {
   const code = String(error?.code || '');
-  if (code === 'auth' || code === 'permission') {
+  if (code === 'permission') {
     return false;
   }
   const text = String(error?.message || error || '').toLowerCase();
@@ -881,7 +818,6 @@ async function executeItemAttempt(item) {
       }
     }
     await sleep(item.waitAfterActionsMs || 0);
-    await verifyAuthenticatedState(tabId, item);
     const saved = await saveTabSnapshot(tabId, item);
     return { saved, actionLog };
   } finally {
