@@ -1,6 +1,5 @@
 import {
   buildActionRunSeedState,
-  buildAuthFailureSeedState,
   buildFileUrlSeedState,
   buildRetrySeedState,
   buildSeedState,
@@ -101,27 +100,6 @@ test.describe('popup page', () => {
 
     const downloadedFiles = await listDownloadedFiles();
     expect(downloadedFiles).toEqual([]);
-  });
-
-  test('shows authentication errors clearly in recent history', async ({
-    baseURL,
-    extensionId,
-    page,
-    resetExtensionState,
-  }) => {
-    await resetExtensionState();
-
-    await page.goto(`chrome-extension://${extensionId}/popup.html?mode=window`);
-    await resetExtensionState(buildAuthFailureSeedState(baseURL));
-    await page.locator('#refresh').click();
-
-    await expect(page.locator('#summary-history')).toHaveText('1');
-    await expect(page.locator('#history .history-row').first()).toContainText(
-      'Authentication error'
-    );
-    await expect(page.locator('#history .history-row').first()).toContainText(
-      'Protected capture target'
-    );
   });
 
   test('retries transient failures and succeeds on a later attempt', async ({

@@ -561,7 +561,7 @@ function renderOutputSettings(item, locale) {
         `<option value="${x.value}" ${x.value === item.pdfOptions.marginPreset ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
     ).join('');
     return `
-      <section class="group-card optional">
+      <div class="embedded-settings-block">
         <div class="group-head">
           <div><h3>${escapeHtml(t('groups.output', {}, locale))}</h3></div>
         </div>
@@ -571,40 +571,22 @@ function renderOutputSettings(item, locale) {
           <label class="field"><span>${escapeHtml(t('fields.pdfMargins', {}, locale))}</span><select id="pdf-margin-preset">${marginOptions}</select></label>
           <label class="field"><span>${escapeHtml(t('fields.pdfBackground', {}, locale))}</span><select id="pdf-print-background"><option value="true" ${item.pdfOptions.printBackground ? 'selected' : ''}>${escapeHtml(t('fields.pdfBackgroundTrue', {}, locale))}</option><option value="false" ${!item.pdfOptions.printBackground ? 'selected' : ''}>${escapeHtml(t('fields.pdfBackgroundFalse', {}, locale))}</option></select></label>
         </div>
-      </section>
+      </div>
     `;
   }
   if (item.saveFormat === 'jpeg') {
     return `
-      <section class="group-card optional">
+      <div class="embedded-settings-block">
         <div class="group-head">
           <div><h3>${escapeHtml(t('groups.output', {}, locale))}</h3></div>
         </div>
         <div class="grid-2 compact-grid">
           <label class="field"><span>${escapeHtml(t('fields.jpegQuality', {}, locale))}</span><input id="image-jpeg-quality" type="number" min="1" max="100" step="1" value="${escapeHtml(item.imageOptions.jpegQuality)}" placeholder="90" /></label>
         </div>
-      </section>
+      </div>
     `;
   }
   return '';
-}
-
-function renderAuthSettings(item, locale) {
-  return `
-    <section class="group-card optional">
-      <div class="group-head">
-        <div>
-          <h3>${escapeHtml(t('groups.authChecks', {}, locale))}</h3>
-          <p>${escapeHtml(t('groups.authChecksHelp', {}, locale))}</p>
-        </div>
-      </div>
-      <div class="grid-2 compact-grid">
-        <label class="field"><span>${escapeHtml(t('fields.authFailureUrlPattern', {}, locale))}</span><input id="auth-url-pattern" value="${escapeHtml(item.authOptions.loginFailureUrlPattern)}" placeholder="${escapeHtml(t('fields.authFailureUrlPatternPlaceholder', {}, locale))}" /></label>
-        <label class="field"><span>${escapeHtml(t('fields.authSelectorType', {}, locale))}</span><select id="auth-selector-type"><option value="css" ${item.authOptions.requiredSelectorType !== 'xpath' ? 'selected' : ''}>${escapeHtml(t('selectorType.css', {}, locale))}</option><option value="xpath" ${item.authOptions.requiredSelectorType === 'xpath' ? 'selected' : ''}>${escapeHtml(t('selectorType.xpath', {}, locale))}</option></select></label>
-        <label class="field"><span>${escapeHtml(t('fields.authSelector', {}, locale))}</span><input id="auth-selector" value="${escapeHtml(item.authOptions.requiredSelector)}" placeholder="${escapeHtml(t('fields.authSelectorPlaceholder', {}, locale))}" /></label>
-      </div>
-    </section>
-  `;
 }
 
 function renderRecoverySettings(item, locale) {
@@ -638,6 +620,7 @@ function renderDetail() {
   const permissionMissing = !state.permissionMap[item.id] && !!item.url;
   const fileUrl = isFileUrl(item.url);
   const permissionResolvable = Boolean(item.url) && canRequestOriginPermission(item.url);
+  const outputSettingsHtml = renderOutputSettings(item, locale);
   const formatOptions = SAVE_FORMATS.map(
     (x) =>
       `<option value="${x.value}" ${x.value === item.saveFormat ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
@@ -685,6 +668,7 @@ function renderDetail() {
           <label class="field"><span>${localizedLabelHtml('fields.url', { required: currentRequiredMark() }, locale)}</span><input id="url-input" value="${escapeHtml(item.url)}" placeholder="https://example.com/page" /></label>
           <label class="field"><span>${localizedLabelHtml('fields.saveFormat', { required: currentRequiredMark() }, locale)}</span><select id="save-format">${formatOptions}</select></label>
         </div>
+        ${outputSettingsHtml}
       </section>
 
       <section class="group-card required">
@@ -732,11 +716,7 @@ function renderDetail() {
         }
       </section>
 
-      ${renderAuthSettings(item, locale)}
-
       ${renderRecoverySettings(item, locale)}
-
-      ${renderOutputSettings(item, locale)}
 
       <section class="group-card optional">
         <div class="group-head">
@@ -999,21 +979,6 @@ function handleDetailInput(event) {
   }
   if (target.id === 'close-tab') {
     item.closeTabAfterSave = target.value === 'true';
-    updateDirtyState();
-    return;
-  }
-  if (target.id === 'auth-url-pattern') {
-    item.authOptions.loginFailureUrlPattern = target.value;
-    updateDirtyState();
-    return;
-  }
-  if (target.id === 'auth-selector-type') {
-    item.authOptions.requiredSelectorType = target.value;
-    updateDirtyState();
-    return;
-  }
-  if (target.id === 'auth-selector') {
-    item.authOptions.requiredSelector = target.value;
     updateDirtyState();
     return;
   }
