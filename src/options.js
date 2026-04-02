@@ -1,15 +1,20 @@
 import {
   ACTION_TYPES,
+  PDF_MARGIN_OPTIONS,
+  PDF_PAPER_SIZE_OPTIONS,
   SAVE_FORMATS,
-  SCHEDULE_INTERVALS,
+  SCHEDULE_INTERVAL_UNIT_OPTIONS,
+  SCHEDULE_MODE_OPTIONS,
   createBlankItem,
   deepClone,
   deriveOriginPattern,
+  executionStatusLabel,
   formatDateTime,
   loadConfig,
   normalizeAction,
   normalizeAppSettings,
   normalizeItem,
+  normalizeSchedule,
   saveFormatLabel,
   summarizeItem,
   uid,
@@ -312,7 +317,7 @@ function renderLogs() {
     row.innerHTML = `
       <td>${escapeHtml(formatDateTime(entry.at, locale))}</td>
       <td>${escapeHtml(entry.itemName)}</td>
-      <td>${escapeHtml(entry.status)}</td>
+      <td>${escapeHtml(executionStatusLabel(entry.status, entry.errorCode || '', locale))}</td>
       <td>${escapeHtml(entry.trigger)}</td>
       <td>${escapeHtml(entry.filename || entry.message || '')}</td>
     `;
@@ -357,12 +362,46 @@ function toDateTimeLocalValue(value) {
 
 function scheduleRowHtml(schedule, index) {
   const locale = currentLocale();
-  const intervalOptions = SCHEDULE_INTERVALS.map(
+  const scheduleModeOptions = SCHEDULE_MODE_OPTIONS.map(
     (x) =>
-      `<option value="${x.value}" ${x.value === schedule.intervalKey ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
+      `<option value="${x.value}" ${x.value === schedule.scheduleMode ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
+  ).join('');
+  const intervalUnitOptions = SCHEDULE_INTERVAL_UNIT_OPTIONS.map(
+    (x) =>
+      `<option value="${x.value}" ${x.value === schedule.intervalUnit ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
   ).join('');
   const startText = toDateTimeLocalValue(schedule.startAt || '');
   const endText = toDateTimeLocalValue(schedule.endAt || '');
+  const recurrenceFields =
+    schedule.scheduleMode === 'interval'
+      ? `
+          <label class="field">
+            <span>${localizedLabelHtml('schedule.every', { required: currentRequiredMark() }, locale)}</span>
+            <input type="number" min="1" step="1" data-schedule-index="${index}" data-schedule-field="intervalValue" value="${escapeHtml(schedule.intervalValue)}" />
+          </label>
+          <label class="field">
+            <span>${localizedLabelHtml('schedule.unit', { required: currentRequiredMark() }, locale)}</span>
+            <select data-schedule-index="${index}" data-schedule-field="intervalUnit">${intervalUnitOptions}</select>
+          </label>
+        `
+      : schedule.scheduleMode === 'monthly'
+        ? `
+          <label class="field">
+            <span>${localizedLabelHtml('schedule.monthlyDay', { required: currentRequiredMark() }, locale)}</span>
+            <input type="number" min="1" max="31" step="1" data-schedule-index="${index}" data-schedule-field="monthlyDay" value="${escapeHtml(schedule.monthlyDay)}" />
+          </label>
+          <div class="field">
+            <span>${escapeHtml(t('schedule.unit', {}, locale))}</span>
+            <div class="small-text">${escapeHtml(t('schedule.monthlyHint', {}, locale))}</div>
+          </div>
+        `
+        : `
+          <div class="field">
+            <span>${escapeHtml(t('schedule.every', {}, locale))}</span>
+            <div class="small-text">${escapeHtml(t('schedule.onceHint', {}, locale))}</div>
+          </div>
+          <div></div>
+        `;
   return `
     <div class="schedule-card ${schedule.enabled ? 'enabled' : 'disabled'}" data-schedule-index="${index}">
       <label class="schedule-enable-rail" title="${escapeHtml(t('action.enableTitle', {}, locale))}">
@@ -375,15 +414,16 @@ function scheduleRowHtml(schedule, index) {
           </div>
           ${index === 0 ? '' : `<button type="button" data-action="remove-schedule" class="ghost danger">${escapeHtml(t('common.delete', {}, locale))}</button>`}
         </div>
-        <div class="grid-3 schedule-grid-single">
+        <div class="grid-5 schedule-grid-single">
           <label class="field">
             <span>${localizedLabelHtml('schedule.startAt', { required: currentRequiredMark() }, locale)}</span>
             <input type="datetime-local" step="60" data-schedule-index="${index}" data-schedule-field="startAt" value="${escapeHtml(startText)}" />
           </label>
           <label class="field">
-            <span>${localizedLabelHtml('schedule.interval', { required: currentRequiredMark() }, locale)}</span>
-            <select data-schedule-index="${index}" data-schedule-field="intervalKey">${intervalOptions}</select>
+            <span>${localizedLabelHtml('schedule.mode', { required: currentRequiredMark() }, locale)}</span>
+            <select data-schedule-index="${index}" data-schedule-field="scheduleMode">${scheduleModeOptions}</select>
           </label>
+          ${recurrenceFields}
           <label class="field">
             <span>${escapeHtml(t('schedule.endAt', {}, locale))}</span>
             <input type="datetime-local" step="60" data-schedule-index="${index}" data-schedule-field="endAt" value="${escapeHtml(endText)}" />
@@ -503,6 +543,80 @@ function renderActions(container, item) {
   });
 }
 
+function renderOutputSettings(item, locale) {
+  if (item.saveFormat === 'pdf') {
+    const paperSizeOptions = PDF_PAPER_SIZE_OPTIONS.map(
+      (x) =>
+        `<option value="${x.value}" ${x.value === item.pdfOptions.paperSize ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
+    ).join('');
+    const marginOptions = PDF_MARGIN_OPTIONS.map(
+      (x) =>
+        `<option value="${x.value}" ${x.value === item.pdfOptions.marginPreset ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
+    ).join('');
+    return `
+      <section class="group-card optional">
+        <div class="group-head">
+          <div><h3>${escapeHtml(t('groups.output', {}, locale))}</h3></div>
+        </div>
+        <div class="grid-2 compact-grid">
+          <label class="field"><span>${escapeHtml(t('fields.pdfOrientation', {}, locale))}</span><select id="pdf-landscape"><option value="false" ${!item.pdfOptions.landscape ? 'selected' : ''}>${escapeHtml(t('fields.orientationPortrait', {}, locale))}</option><option value="true" ${item.pdfOptions.landscape ? 'selected' : ''}>${escapeHtml(t('fields.orientationLandscape', {}, locale))}</option></select></label>
+          <label class="field"><span>${escapeHtml(t('fields.pdfPaperSize', {}, locale))}</span><select id="pdf-paper-size">${paperSizeOptions}</select></label>
+          <label class="field"><span>${escapeHtml(t('fields.pdfMargins', {}, locale))}</span><select id="pdf-margin-preset">${marginOptions}</select></label>
+          <label class="field"><span>${escapeHtml(t('fields.pdfBackground', {}, locale))}</span><select id="pdf-print-background"><option value="true" ${item.pdfOptions.printBackground ? 'selected' : ''}>${escapeHtml(t('fields.pdfBackgroundTrue', {}, locale))}</option><option value="false" ${!item.pdfOptions.printBackground ? 'selected' : ''}>${escapeHtml(t('fields.pdfBackgroundFalse', {}, locale))}</option></select></label>
+        </div>
+      </section>
+    `;
+  }
+  if (item.saveFormat === 'jpeg') {
+    return `
+      <section class="group-card optional">
+        <div class="group-head">
+          <div><h3>${escapeHtml(t('groups.output', {}, locale))}</h3></div>
+        </div>
+        <div class="grid-2 compact-grid">
+          <label class="field"><span>${escapeHtml(t('fields.jpegQuality', {}, locale))}</span><input id="image-jpeg-quality" type="number" min="1" max="100" step="1" value="${escapeHtml(item.imageOptions.jpegQuality)}" placeholder="90" /></label>
+        </div>
+      </section>
+    `;
+  }
+  return '';
+}
+
+function renderAuthSettings(item, locale) {
+  return `
+    <section class="group-card optional">
+      <div class="group-head">
+        <div>
+          <h3>${escapeHtml(t('groups.authChecks', {}, locale))}</h3>
+          <p>${escapeHtml(t('groups.authChecksHelp', {}, locale))}</p>
+        </div>
+      </div>
+      <div class="grid-2 compact-grid">
+        <label class="field"><span>${escapeHtml(t('fields.authFailureUrlPattern', {}, locale))}</span><input id="auth-url-pattern" value="${escapeHtml(item.authOptions.loginFailureUrlPattern)}" placeholder="${escapeHtml(t('fields.authFailureUrlPatternPlaceholder', {}, locale))}" /></label>
+        <label class="field"><span>${escapeHtml(t('fields.authSelectorType', {}, locale))}</span><select id="auth-selector-type"><option value="css" ${item.authOptions.requiredSelectorType !== 'xpath' ? 'selected' : ''}>${escapeHtml(t('selectorType.css', {}, locale))}</option><option value="xpath" ${item.authOptions.requiredSelectorType === 'xpath' ? 'selected' : ''}>${escapeHtml(t('selectorType.xpath', {}, locale))}</option></select></label>
+        <label class="field"><span>${escapeHtml(t('fields.authSelector', {}, locale))}</span><input id="auth-selector" value="${escapeHtml(item.authOptions.requiredSelector)}" placeholder="${escapeHtml(t('fields.authSelectorPlaceholder', {}, locale))}" /></label>
+      </div>
+    </section>
+  `;
+}
+
+function renderRecoverySettings(item, locale) {
+  return `
+    <section class="group-card optional">
+      <div class="group-head">
+        <div>
+          <h3>${escapeHtml(t('groups.recovery', {}, locale))}</h3>
+          <p>${escapeHtml(t('groups.recoveryHelp', {}, locale))}</p>
+        </div>
+      </div>
+      <div class="grid-2 compact-grid">
+        <label class="field"><span>${escapeHtml(t('fields.retryCount', {}, locale))}</span><input id="retry-count" type="number" min="0" max="5" step="1" value="${escapeHtml(item.retryOptions.maxRetries)}" placeholder="0" /></label>
+        <label class="field"><span>${escapeHtml(t('fields.retryDelayMs', {}, locale))}</span><input id="retry-delay-ms" type="number" min="0" step="100" value="${escapeHtml(item.retryOptions.retryDelayMs)}" placeholder="${escapeHtml(t('fields.msPlaceholder1000', {}, locale))}" /></label>
+      </div>
+    </section>
+  `;
+}
+
 function renderDetail() {
   const locale = currentLocale();
   const item = getSelectedItem();
@@ -593,6 +707,12 @@ function renderDetail() {
         </div>
       </section>
 
+      ${renderAuthSettings(item, locale)}
+
+      ${renderRecoverySettings(item, locale)}
+
+      ${renderOutputSettings(item, locale)}
+
       <section class="group-card optional">
         <div class="group-head">
           <div><h3>${escapeHtml(t('groups.actions', {}, locale))}</h3><p>${escapeHtml(t('groups.actionsHelp', {}, locale))}</p></div>
@@ -677,13 +797,17 @@ function addSchedule() {
   if (!item) {
     return;
   }
-  item.schedules.push({
-    id: uid('sch'),
-    startAt: '',
-    intervalKey: 'day1',
-    endAt: '',
-    enabled: true,
-  });
+  item.schedules.push(
+    normalizeSchedule({
+      id: uid('sch'),
+      startAt: '',
+      scheduleMode: 'interval',
+      intervalValue: 1,
+      intervalUnit: 'day',
+      endAt: '',
+      enabled: true,
+    })
+  );
   updateDirtyState();
   renderDetail();
   renderSidebar();
@@ -817,6 +941,7 @@ function handleDetailInput(event) {
     item.saveFormat = target.value;
     updateDirtyState();
     renderSidebar();
+    renderDetail();
     return;
   }
   if (target.id === 'download-folder') {
@@ -844,22 +969,81 @@ function handleDetailInput(event) {
     updateDirtyState();
     return;
   }
+  if (target.id === 'auth-url-pattern') {
+    item.authOptions.loginFailureUrlPattern = target.value;
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'auth-selector-type') {
+    item.authOptions.requiredSelectorType = target.value;
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'auth-selector') {
+    item.authOptions.requiredSelector = target.value;
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'retry-count') {
+    item.retryOptions.maxRetries = target.value === '' ? '' : Number(target.value);
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'retry-delay-ms') {
+    item.retryOptions.retryDelayMs = target.value === '' ? '' : Number(target.value);
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'pdf-landscape') {
+    item.pdfOptions.landscape = target.value === 'true';
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'pdf-paper-size') {
+    item.pdfOptions.paperSize = target.value;
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'pdf-margin-preset') {
+    item.pdfOptions.marginPreset = target.value;
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'pdf-print-background') {
+    item.pdfOptions.printBackground = target.value === 'true';
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'image-jpeg-quality') {
+    item.imageOptions.jpegQuality = target.value === '' ? '' : Number(target.value);
+    updateDirtyState();
+    return;
+  }
   const scheduleIndex = Number(target.dataset.scheduleIndex);
   if (!Number.isNaN(scheduleIndex) && item.schedules[scheduleIndex]) {
     const schedule = item.schedules[scheduleIndex];
     if (target.dataset.scheduleField) {
       const field = target.dataset.scheduleField;
+      const nextSchedule = { ...schedule };
       if (field === 'startAt') {
-        schedule.startAt =
+        nextSchedule.startAt =
           event.type === 'input' ? String(target.value || '') : String(target.value || '').trim();
       } else if (field === 'endAt') {
-        schedule.endAt =
+        nextSchedule.endAt =
           event.type === 'input' ? String(target.value || '') : String(target.value || '').trim();
       } else {
-        schedule[field] = target.type === 'checkbox' ? target.checked : target.value;
+        nextSchedule[field] = target.type === 'checkbox' ? target.checked : target.value;
       }
+      item.schedules[scheduleIndex] = normalizeSchedule(
+        nextSchedule,
+        nextSchedule.startAt || schedule.startAt
+      );
       updateDirtyState();
       renderSidebar();
+      if (field === 'scheduleMode') {
+        renderDetail();
+        return;
+      }
       if (event.type === 'input') {
         return;
       }

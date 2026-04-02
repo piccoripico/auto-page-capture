@@ -6,8 +6,8 @@ It opens a target page on a schedule, optionally performs pre-save actions, and 
 
 ## Screenshots
 
-| Popup | Settings |
-| --- | --- |
+| Popup                                         | Settings                                           |
+| --------------------------------------------- | -------------------------------------------------- |
 | ![Popup screen](docs/images/popup-screen.png) | ![Settings screen](docs/images/options-screen.png) |
 
 ## Why This Extension Exists
@@ -24,6 +24,16 @@ This extension is built for that workflow:
 ## Features
 
 - Multiple capture items with independent schedules
+- Flexible schedules:
+  - run once
+  - every N minutes / hours / days / weeks
+  - monthly on a chosen day
+- Optional login checks before saving:
+  - detect redirects to login URLs
+  - confirm a signed-in marker element exists
+- Optional retry for transient failures:
+  - retry timeouts and temporary capture interruptions
+  - keep permission and authentication failures as immediate errors
 - Manual run from the popup
 - Automatic scheduled capture with `chrome.alarms`
 - Pre-save actions such as:
@@ -52,6 +62,13 @@ This extension is built for that workflow:
 - `HTML`: DOM snapshot of the current page state
 - `PDF`: rendered through the browser print pipeline
 - `PNG / JPEG / WebP`: full-page screenshot captured through the browser debugger API
+- PDF output settings per item:
+  - page orientation
+  - paper size
+  - margin preset
+  - background graphics on/off
+- JPEG output settings per item:
+  - quality (1-100)
 
 ## Privacy
 
@@ -163,7 +180,7 @@ npm run test:e2e:manual
 
 If PowerShell blocks `npm`, use `npm.cmd` instead.
 
-The default automated suite covers settings editing, sidebar live updates, popup rendering, recent-history clearing, and alarm synchronization.
+The default automated suite covers settings editing, sidebar live updates, popup rendering, recent-history clearing, alarm synchronization, login-check persistence, and retry behavior for transient failures.
 
 The manual smoke test exists because optional host-permission grants require a real browser confirmation. It verifies the successful flow and checks downloads across `HTML`, `MHTML`, `PDF`, `PNG`, `JPEG`, and `WebP`.
 
