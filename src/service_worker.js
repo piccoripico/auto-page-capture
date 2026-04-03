@@ -721,37 +721,12 @@ function summarizeActionLog(actionLog = []) {
     .join(' | ');
 }
 
-function isRetryableError(error) {
-  const code = String(error?.code || '');
-  if (code === 'permission') {
-    return false;
-  }
-  const text = String(error?.message || error || '').toLowerCase();
-  return [
-    'timed out',
-    'timeout',
-    'interrupted',
-    'net::',
-    'target closed',
-    'returned no data',
-    'disconnected',
-  ].some((marker) => text.includes(marker));
+function successMessage(actionSummary) {
+  return actionSummary || 'Saved successfully.';
 }
 
-function successMessage(actionSummary, attemptNumber, maxAttempts) {
-  const base = actionSummary || 'Saved successfully.';
-  if (attemptNumber > 1) {
-    return `${base} Recovered on attempt ${attemptNumber}/${maxAttempts}.`;
-  }
-  return base;
-}
-
-function failureMessage(error, attemptNumber, maxAttempts) {
-  const base = error?.message || String(error);
-  if (attemptNumber > 1) {
-    return `Failed after ${attemptNumber}/${maxAttempts} attempts. Last error: ${base}`;
-  }
-  return base;
+function failureMessage(error) {
+  return error?.message || String(error);
 }
 
 async function executeItemAttempt(item) {
@@ -834,54 +809,36 @@ async function executeItemNow(item, trigger = 'manual') {
     return { ok: false, skipped: true, message: 'This item is already running.' };
   }
   runningItemIds.add(item.id);
-  const maxAttempts = 1 + Math.max(0, Number(item.retryOptions?.maxRetries || 0));
-  const retryDelayMs = Math.max(0, Number(item.retryOptions?.retryDelayMs || 1000) || 1000);
-  let lastError = null;
-  let attemptNumber = 0;
   try {
-    for (attemptNumber = 1; attemptNumber <= maxAttempts; attemptNumber += 1) {
-      try {
-        const { saved, actionLog } = await executeItemAttempt(item);
-        const entry = {
-          id: crypto.randomUUID(),
-          itemId: item.id,
-          itemName: item.name,
-          status: 'success',
-          errorCode: '',
-          trigger,
-          at: new Date().toISOString(),
-          filename: saved.filename,
-          fileFormat: saved.format,
-          message: successMessage(summarizeActionLog(actionLog || []), attemptNumber, maxAttempts),
-          actionLog: actionLog || [],
-          attemptCount: attemptNumber,
-          maxAttempts,
-        };
-        await appendLog(entry);
-        return { ok: true, entry };
-      } catch (error) {
-        lastError = error;
-        if (attemptNumber >= maxAttempts || !isRetryableError(error)) {
-          break;
-        }
-        await sleep(retryDelayMs);
-      }
-    }
-
+    const { saved, actionLog } = await executeItemAttempt(item);
+    const entry = {
+      id: crypto.randomUUID(),
+      itemId: item.id,
+      itemName: item.name,
+      status: 'success',
+      errorCode: '',
+      trigger,
+      at: new Date().toISOString(),
+      filename: saved.filename,
+      fileFormat: saved.format,
+      message: successMessage(summarizeActionLog(actionLog || [])),
+      actionLog: actionLog || [],
+    };
+    await appendLog(entry);
+    return { ok: true, entry };
+  } catch (error) {
     const entry = {
       id: crypto.randomUUID(),
       itemId: item.id,
       itemName: item.name,
       status: 'error',
-      errorCode: lastError?.code || '',
+      errorCode: error?.code || '',
       trigger,
       at: new Date().toISOString(),
       filename: '',
       fileFormat: fileExtensionFor(item.saveFormat),
-      message: failureMessage(lastError, attemptNumber, maxAttempts),
-      actionLog: lastError?.actionLog || [],
-      attemptCount: attemptNumber,
-      maxAttempts,
+      message: failureMessage(error),
+      actionLog: error?.actionLog || [],
     };
     await appendLog(entry);
     return { ok: false, entry };

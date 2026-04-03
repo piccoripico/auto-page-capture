@@ -5,6 +5,7 @@ import {
   SAVE_FORMATS,
   SCHEDULE_INTERVAL_UNIT_OPTIONS,
   SCHEDULE_MODE_OPTIONS,
+  buildFilename,
   createBlankItem,
   deepClone,
   deriveOriginPattern,
@@ -397,17 +398,16 @@ function scheduleRowHtml(schedule, index) {
             <span>${localizedLabelHtml('schedule.monthlyDay', { required: currentRequiredMark() }, locale)}</span>
             <input type="number" min="1" max="31" step="1" data-schedule-index="${index}" data-schedule-field="monthlyDay" value="${escapeHtml(schedule.monthlyDay)}" />
           </label>
-          <div class="field">
+          <div class="field schedule-hint-field">
             <span>${escapeHtml(t('schedule.unit', {}, locale))}</span>
             <div class="small-text">${escapeHtml(t('schedule.monthlyHint', {}, locale))}</div>
           </div>
         `
         : `
-          <div class="field">
+          <div class="field schedule-hint-field">
             <span>${escapeHtml(t('schedule.every', {}, locale))}</span>
             <div class="small-text">${escapeHtml(t('schedule.onceHint', {}, locale))}</div>
           </div>
-          <div></div>
         `;
   return `
     <div class="schedule-card ${schedule.enabled ? 'enabled' : 'disabled'}" data-schedule-index="${index}">
@@ -421,20 +421,26 @@ function scheduleRowHtml(schedule, index) {
           </div>
           ${index === 0 ? '' : `<button type="button" data-action="remove-schedule" class="ghost danger">${escapeHtml(t('common.delete', {}, locale))}</button>`}
         </div>
-        <div class="grid-5 schedule-grid-single">
-          <label class="field">
-            <span>${localizedLabelHtml('schedule.startAt', { required: currentRequiredMark() }, locale)}</span>
-            <input type="datetime-local" step="60" data-schedule-index="${index}" data-schedule-field="startAt" value="${escapeHtml(startText)}" />
-          </label>
-          <label class="field">
-            <span>${localizedLabelHtml('schedule.mode', { required: currentRequiredMark() }, locale)}</span>
-            <select data-schedule-index="${index}" data-schedule-field="scheduleMode">${scheduleModeOptions}</select>
-          </label>
-          ${recurrenceFields}
-          <label class="field">
-            <span>${escapeHtml(t('schedule.endAt', {}, locale))}</span>
-            <input type="datetime-local" step="60" data-schedule-index="${index}" data-schedule-field="endAt" value="${escapeHtml(endText)}" />
-          </label>
+        <div class="schedule-layout">
+          <div class="schedule-time-grid">
+            <label class="field">
+              <span>${localizedLabelHtml('schedule.startAt', { required: currentRequiredMark() }, locale)}</span>
+              <input type="datetime-local" step="60" data-schedule-index="${index}" data-schedule-field="startAt" value="${escapeHtml(startText)}" />
+            </label>
+            <label class="field">
+              <span>${escapeHtml(t('schedule.endAt', {}, locale))}</span>
+              <input type="datetime-local" step="60" data-schedule-index="${index}" data-schedule-field="endAt" value="${escapeHtml(endText)}" />
+            </label>
+          </div>
+          <div class="schedule-repeat-block">
+            <div class="schedule-repeat-grid">
+              <label class="field">
+                <span>${localizedLabelHtml('schedule.mode', { required: currentRequiredMark() }, locale)}</span>
+                <select data-schedule-index="${index}" data-schedule-field="scheduleMode">${scheduleModeOptions}</select>
+              </label>
+              ${recurrenceFields}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -566,10 +572,10 @@ function renderOutputSettings(item, locale) {
           <div><h3>${escapeHtml(t('groups.output', {}, locale))}</h3></div>
         </div>
         <div class="grid-2 compact-grid">
-          <label class="field"><span>${escapeHtml(t('fields.pdfOrientation', {}, locale))}</span><select id="pdf-landscape"><option value="false" ${!item.pdfOptions.landscape ? 'selected' : ''}>${escapeHtml(t('fields.orientationPortrait', {}, locale))}</option><option value="true" ${item.pdfOptions.landscape ? 'selected' : ''}>${escapeHtml(t('fields.orientationLandscape', {}, locale))}</option></select></label>
-          <label class="field"><span>${escapeHtml(t('fields.pdfPaperSize', {}, locale))}</span><select id="pdf-paper-size">${paperSizeOptions}</select></label>
-          <label class="field"><span>${escapeHtml(t('fields.pdfMargins', {}, locale))}</span><select id="pdf-margin-preset">${marginOptions}</select></label>
-          <label class="field"><span>${escapeHtml(t('fields.pdfBackground', {}, locale))}</span><select id="pdf-print-background"><option value="true" ${item.pdfOptions.printBackground ? 'selected' : ''}>${escapeHtml(t('fields.pdfBackgroundTrue', {}, locale))}</option><option value="false" ${!item.pdfOptions.printBackground ? 'selected' : ''}>${escapeHtml(t('fields.pdfBackgroundFalse', {}, locale))}</option></select></label>
+          <label class="field"><span>${localizedLabelHtml('fields.pdfOrientation', { required: currentRequiredMark() }, locale)}</span><select id="pdf-landscape"><option value="false" ${!item.pdfOptions.landscape ? 'selected' : ''}>${escapeHtml(t('fields.orientationPortrait', {}, locale))}</option><option value="true" ${item.pdfOptions.landscape ? 'selected' : ''}>${escapeHtml(t('fields.orientationLandscape', {}, locale))}</option></select></label>
+          <label class="field"><span>${localizedLabelHtml('fields.pdfPaperSize', { required: currentRequiredMark() }, locale)}</span><select id="pdf-paper-size">${paperSizeOptions}</select></label>
+          <label class="field"><span>${localizedLabelHtml('fields.pdfMargins', { required: currentRequiredMark() }, locale)}</span><select id="pdf-margin-preset">${marginOptions}</select></label>
+          <label class="field"><span>${localizedLabelHtml('fields.pdfBackground', { required: currentRequiredMark() }, locale)}</span><select id="pdf-print-background"><option value="true" ${item.pdfOptions.printBackground ? 'selected' : ''}>${escapeHtml(t('fields.pdfBackgroundTrue', {}, locale))}</option><option value="false" ${!item.pdfOptions.printBackground ? 'selected' : ''}>${escapeHtml(t('fields.pdfBackgroundFalse', {}, locale))}</option></select></label>
         </div>
       </div>
     `;
@@ -589,21 +595,10 @@ function renderOutputSettings(item, locale) {
   return '';
 }
 
-function renderRecoverySettings(item, locale) {
-  return `
-    <section class="group-card optional">
-      <div class="group-head">
-        <div>
-          <h3>${escapeHtml(t('groups.recovery', {}, locale))}</h3>
-          <p>${escapeHtml(t('groups.recoveryHelp', {}, locale))}</p>
-        </div>
-      </div>
-      <div class="grid-2 compact-grid">
-        <label class="field"><span>${escapeHtml(t('fields.retryCount', {}, locale))}</span><input id="retry-count" type="number" min="0" max="5" step="1" value="${escapeHtml(item.retryOptions.maxRetries)}" placeholder="0" /></label>
-        <label class="field"><span>${escapeHtml(t('fields.retryDelayMs', {}, locale))}</span><input id="retry-delay-ms" type="number" min="0" step="100" value="${escapeHtml(item.retryOptions.retryDelayMs)}" placeholder="${escapeHtml(t('fields.msPlaceholder1000', {}, locale))}" /></label>
-      </div>
-    </section>
-  `;
+function outputPathPreviewValue(item, locale) {
+  const previewDate = new Date('2030-01-02T03:04:05');
+  const previewPrefix = String(item.filenamePrefix || '').trim() || item.name || 'capture';
+  return `${t('fields.outputPathPreviewRoot', {}, locale)}/${buildFilename(item, previewDate, previewPrefix)}`;
 }
 
 function renderDetail() {
@@ -687,6 +682,10 @@ function renderDetail() {
           <label class="field"><span>${escapeHtml(t('fields.downloadFolder', {}, locale))}</span><input id="download-folder" value="${escapeHtml(item.downloadFolder)}" placeholder="${escapeHtml(t('fields.downloadFolderPlaceholder', {}, locale))}" /></label>
           <label class="field"><span>${escapeHtml(t('fields.filenamePrefix', {}, locale))}</span><input id="filename-prefix" value="${escapeHtml(item.filenamePrefix)}" placeholder="${escapeHtml(t('fields.filenamePrefixPlaceholder', {}, locale))}" /></label>
         </div>
+        <div class="field" style="margin-top:12px">
+          <span>${escapeHtml(t('fields.outputPathPreview', {}, locale))}</span>
+          <code id="output-path-preview" class="path-preview">${escapeHtml(outputPathPreviewValue(item, locale))}</code>
+        </div>
         <div class="grid-4 compact-grid" style="margin-top:12px">
           <label class="field"><span>${escapeHtml(t('fields.waitBefore', {}, locale))}</span><input id="wait-before" type="number" min="0" step="100" value="${escapeHtml(item.waitBeforeActionsMs)}" placeholder="${escapeHtml(t('fields.msPlaceholder1000', {}, locale))}" /></label>
           <label class="field"><span>${escapeHtml(t('fields.waitAfter', {}, locale))}</span><input id="wait-after" type="number" min="0" step="100" value="${escapeHtml(item.waitAfterActionsMs)}" placeholder="${escapeHtml(t('fields.msPlaceholder1000', {}, locale))}" /></label>
@@ -715,8 +714,6 @@ function renderDetail() {
             : ''
         }
       </section>
-
-      ${renderRecoverySettings(item, locale)}
 
       <section class="group-card optional">
         <div class="group-head">
@@ -921,6 +918,10 @@ function handleDetailInput(event) {
     item.name = target.value;
     updateDirtyState();
     renderSidebar();
+    const preview = document.getElementById('output-path-preview');
+    if (preview) {
+      preview.textContent = outputPathPreviewValue(item, currentLocale());
+    }
     return;
   }
   if (target.id === 'description-input') {
@@ -960,11 +961,19 @@ function handleDetailInput(event) {
   if (target.id === 'download-folder') {
     item.downloadFolder = target.value;
     updateDirtyState();
+    const preview = document.getElementById('output-path-preview');
+    if (preview) {
+      preview.textContent = outputPathPreviewValue(item, currentLocale());
+    }
     return;
   }
   if (target.id === 'filename-prefix') {
     item.filenamePrefix = target.value;
     updateDirtyState();
+    const preview = document.getElementById('output-path-preview');
+    if (preview) {
+      preview.textContent = outputPathPreviewValue(item, currentLocale());
+    }
     return;
   }
   if (target.id === 'wait-before') {
@@ -979,16 +988,6 @@ function handleDetailInput(event) {
   }
   if (target.id === 'close-tab') {
     item.closeTabAfterSave = target.value === 'true';
-    updateDirtyState();
-    return;
-  }
-  if (target.id === 'retry-count') {
-    item.retryOptions.maxRetries = target.value === '' ? '' : Number(target.value);
-    updateDirtyState();
-    return;
-  }
-  if (target.id === 'retry-delay-ms') {
-    item.retryOptions.retryDelayMs = target.value === '' ? '' : Number(target.value);
     updateDirtyState();
     return;
   }

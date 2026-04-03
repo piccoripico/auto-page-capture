@@ -144,7 +144,7 @@ test.describe('options page', () => {
     await expect(page.locator('#pdf-landscape')).toBeVisible();
 
     await page.locator('#pdf-landscape').selectOption('true');
-    await page.locator('#pdf-paper-size').selectOption('letter');
+    await page.locator('#pdf-paper-size').selectOption('tabloid');
     await page.locator('#pdf-margin-preset').selectOption('none');
     await page.locator('#pdf-print-background').selectOption('false');
     await page.locator('#save-all').click();
@@ -154,7 +154,7 @@ test.describe('options page', () => {
 
     await expect(page.locator('#save-format')).toHaveValue('pdf');
     await expect(page.locator('#pdf-landscape')).toHaveValue('true');
-    await expect(page.locator('#pdf-paper-size')).toHaveValue('letter');
+    await expect(page.locator('#pdf-paper-size')).toHaveValue('tabloid');
     await expect(page.locator('#pdf-margin-preset')).toHaveValue('none');
     await expect(page.locator('#pdf-print-background')).toHaveValue('false');
 
@@ -162,10 +162,35 @@ test.describe('options page', () => {
     expect(stored.items[0].saveFormat).toBe('pdf');
     expect(stored.items[0].pdfOptions).toEqual({
       landscape: true,
-      paperSize: 'letter',
+      paperSize: 'tabloid',
       marginPreset: 'none',
       printBackground: false,
     });
+  });
+
+  test('shows a preview of the saved file path', async ({
+    baseURL,
+    extensionId,
+    page,
+    resetExtensionState,
+  }) => {
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/options.html`);
+    await resetExtensionState(buildSeedState(baseURL));
+    await page.reload();
+
+    await expect(page.locator('#output-path-preview')).toHaveText(
+      'Browser default downloads folder/capture-target_20300102_030405.html'
+    );
+
+    await page.locator('#download-folder').fill('reports/daily');
+    await page.locator('#filename-prefix').fill('team snapshot');
+    await page.locator('#save-format').selectOption('pdf');
+
+    await expect(page.locator('#output-path-preview')).toHaveText(
+      'Browser default downloads folder/reports/daily/team_snapshot_20300102_030405.pdf'
+    );
   });
 
   test('switches to JPEG output settings and persists quality', async ({
@@ -307,36 +332,6 @@ test.describe('options page', () => {
     });
 
     expect(monthlyComputation.nextLocal).toBe('2026-02-28T08:15');
-  });
-
-  test('persists retry settings after save', async ({
-    baseURL,
-    extensionId,
-    page,
-    readExtensionState,
-    resetExtensionState,
-  }) => {
-    await resetExtensionState();
-
-    await page.goto(`chrome-extension://${extensionId}/options.html`);
-    await resetExtensionState(buildSeedState(baseURL));
-    await page.reload();
-
-    await page.locator('#retry-count').fill('2');
-    await page.locator('#retry-delay-ms').fill('1500');
-    await page.locator('#save-all').click();
-
-    await expect(page.locator('#save-all')).toBeDisabled();
-    await page.reload();
-
-    await expect(page.locator('#retry-count')).toHaveValue('2');
-    await expect(page.locator('#retry-delay-ms')).toHaveValue('1500');
-
-    const stored = await readExtensionState(['items']);
-    expect(stored.items[0].retryOptions).toEqual({
-      maxRetries: 2,
-      retryDelayMs: 1500,
-    });
   });
 
   test('accepts file URLs and shows file access guidance', async ({

@@ -31,9 +31,6 @@ This extension is built for that workflow:
 - Local file URL support:
   - `file://` targets can be registered
   - requires the browser's `Allow access to file URLs` setting for this extension
-- Optional retry for transient failures:
-  - retry timeouts and temporary capture interruptions
-  - keep permission failures as immediate errors
 - Manual run from the popup
 - Automatic scheduled capture with `chrome.alarms`
 - Pre-save actions such as:
@@ -189,7 +186,7 @@ npm run test:e2e:manual
 
 If PowerShell blocks `npm`, use `npm.cmd` instead.
 
-The default automated suite covers settings editing, sidebar live updates, popup rendering, recent-history clearing, alarm synchronization, file-URL guidance, and retry behavior for transient failures.
+The default automated suite covers settings editing, sidebar live updates, popup rendering, recent-history clearing, alarm synchronization, and file-URL guidance.
 
 The manual smoke test exists because optional host-permission grants require a real browser confirmation. It verifies the successful flow and checks downloads across `HTML`, `MHTML`, `PDF`, `PNG`, `JPEG`, and `WebP`.
 
