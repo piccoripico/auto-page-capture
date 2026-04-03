@@ -1,0 +1,151 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or SHA to package. Defaults to the workflow ref.
+        required: false
+        type: string
+      create_release:
+        description: Publish a GitHub Release for this run.
+        required: false
+        default: false
+        type: boolean
+      tag_name:
+        description: Release tag, for example v1.1.0. Required when create_release is enabled.
+        required: false
+        type: string
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  package-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Resolve release mode
+        id: release_meta
+        env:
+          INPUT_CREATE_RELEASE: ${{ inputs.create_release }}
+          INPUT_TAG_NAME: ${{ inputs.tag_name }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REF_TYPE: ${{ github.ref_type }}
+        run: |
+          should_release=false
+          tag_name=
+
+          if [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF_TYPE" == "tag" ]]; then
+            should_release=true
+            tag_name="$GITHUB_REF_NAME"
+          elif [[ "$INPUT_CREATE_RELEASE" == "true" ]]; then
+            if [[ -z "$INPUT_TAG_NAME" ]]; then
+              echo "tag_name is required when create_release is enabled." >&2
+              exit 1
+            fi
+            should_release=true
+            tag_name="$INPUT_TAG_NAME"
+          fi
+
+          echo "should_release=$should_release" >>"$GITHUB_OUTPUT"
+          echo "tag_name=$tag_name" >>"$GITHUB_OUTPUT"
+
+      - name: Verify package and manifest versions
+        run: |
+          node --input-type=module <<'EOF'
+          import fs from 'node:fs';
+
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const manifest = JSON.parse(fs.readFileSync('src/manifest.json', 'utf8'));
+
+          if (pkg.version !== manifest.version) {
+            console.error(
+              `package.json (${pkg.version}) and src/manifest.json (${manifest.version}) must match.`
+            );
+            process.exit(1);
+          }
+          EOF
+
+      - name: Verify release tag matches version
+        if: steps.release_meta.outputs.should_release == 'true'
+        env:
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+        run: |
+          node --input-type=module <<'EOF'
+          import fs from 'node:fs';
+
+          const manifest = JSON.parse(fs.readFileSync('src/manifest.json', 'utf8'));
+          const expectedTag = `v${manifest.version}`;
+          const actualTag = process.env.TAG_NAME;
+
+          if (actualTag !== expectedTag) {
+            console.error(`Release tag ${actualTag} does not match manifest version ${expectedTag}.`);
+            process.exit(1);
+          }
+          EOF
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build extension package
+        run: npm run package
+
+      - name: Collect package metadata
+        id: package_meta
+        run: |
+          zip_path="$(ls dist/*.zip)"
+          zip_name="$(basename "$zip_path")"
+          echo "zip_path=$zip_path" >>"$GITHUB_OUTPUT"
+          echo "zip_name=$zip_name" >>"$GITHUB_OUTPUT"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package_meta.outputs.zip_name }}
+          path: ${{ steps.package_meta.outputs.zip_path }}
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: steps.release_meta.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.release_meta.outputs.tag_name }}
+          ZIP_PATH: ${{ steps.package_meta.outputs.zip_path }}
+          GITHUB_SHA_VALUE: ${{ github.sha }}
+        run: |
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "$ZIP_PATH" --clobber
+          else
+            gh release create "$TAG_NAME" "$ZIP_PATH" --title "$TAG_NAME" --generate-notes --target "$GITHUB_SHA_VALUE"
+          fi

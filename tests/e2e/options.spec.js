@@ -148,9 +148,9 @@ test.describe('options page', () => {
     await expect(page.locator('#pdf-landscape')).toBeVisible();
     await expect(page.locator('#pdf-margin-preset')).toHaveValue('default');
 
-    const marginOptions = await page.locator('#pdf-margin-preset').evaluate((node) =>
-      Array.from(node.options).map((option) => option.value)
-    );
+    const marginOptions = await page
+      .locator('#pdf-margin-preset')
+      .evaluate((node) => Array.from(node.options).map((option) => option.value));
     expect(marginOptions).toEqual(['none', 'narrow', 'default', 'wide', 'extraWide']);
 
     await page.locator('#pdf-landscape').selectOption('true');
@@ -212,9 +212,7 @@ test.describe('options page', () => {
     await expect(page.locator('[data-role="label-schedule-start"] .required-symbol')).toHaveText(
       '(*)'
     );
-    await expect(page.locator('[data-role="label-schedule-mode"] .required-symbol')).toHaveCount(
-      0
-    );
+    await expect(page.locator('[data-role="label-schedule-mode"] .required-symbol')).toHaveCount(0);
 
     await page.locator('#save-format').selectOption('pdf');
     await expect(page.locator('[data-role="label-pdf-paper-size"] .required-symbol')).toHaveCount(
@@ -225,7 +223,9 @@ test.describe('options page', () => {
     await expect(page.locator('[data-role="label-selector"] .required-symbol')).toHaveText('(*)');
     await expect(page.locator('[data-role="label-text"] .required-symbol')).toHaveText('(*)');
     await expect(page.locator('[data-role="label-operator"] .required-symbol')).toHaveCount(0);
-    await expect(page.locator('[data-role="label-wait-after-click"] .required-symbol')).toHaveCount(0);
+    await expect(page.locator('[data-role="label-wait-after-click"] .required-symbol')).toHaveCount(
+      0
+    );
   });
 
   test('shows a URL hint for supported schemes', async ({
@@ -493,9 +493,9 @@ test.describe('options page', () => {
 
     await actionCard(page, 0).locator('[data-field="type"]').selectOption('clickText');
     await actionCard(page, 0).locator('[data-action-field="selector"]').fill('.menu button');
-    await actionCard(page, 0).locator('[data-action-field="textSourceSelector"]').fill(
-      '.menu button .label'
-    );
+    await actionCard(page, 0)
+      .locator('[data-action-field="textSourceSelector"]')
+      .fill('.menu button .label');
     await actionCard(page, 0).locator('[data-action-field="text"]').fill('Run now');
     await actionCard(page, 0).locator('[data-action-field="operator"]').selectOption('contains');
     await actionCard(page, 0).locator('[data-action-field="waitAfterMs"]').fill('1200');
@@ -525,9 +525,7 @@ test.describe('options page', () => {
 
     await actionCard(page, 5).locator('[data-field="type"]').selectOption('waitForNotExists');
     await actionCard(page, 5).locator('[data-action-field="selectorType"]').selectOption('css');
-    await actionCard(page, 5)
-      .locator('[data-action-field="selector"]')
-      .fill('.loading-indicator');
+    await actionCard(page, 5).locator('[data-action-field="selector"]').fill('.loading-indicator');
     await actionCard(page, 5).locator('[data-action-field="timeoutMs"]').fill('3300');
 
     await actionCard(page, 6).locator('[data-field="type"]').selectOption('waitForAttribute');

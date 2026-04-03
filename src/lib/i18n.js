@@ -414,8 +414,7 @@ const EN = {
   'fields.dispatchChange': 'Dispatch change event {required}',
   'fields.dispatchInput': 'Dispatch input event {required}',
   'fields.downloadFolder': 'Subfolder name',
-  'fields.downloadFolderPlaceholder':
-    'Leave blank to save in the browser default downloads folder',
+  'fields.downloadFolderPlaceholder': 'Leave blank to save in the browser default downloads folder',
   'fields.expectedValue': 'Value {required}',
   'fields.filenamePrefix': 'Filename',
   'fields.filenamePrefixPlaceholder': 'Leave blank to use the item name',
