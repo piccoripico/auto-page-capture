@@ -1058,7 +1058,22 @@ function renderDetail() {
     scheduleList.append(buildScheduleRow(schedule, index, locale));
   });
 
+  fragment.querySelector('[data-role="permission-label"]').textContent = t(
+    fileUrl ? 'permission.fileAccessStatus' : 'permission.allowedOrigin',
+    {},
+    locale
+  );
+
   const permissionOriginText = (() => {
+    if (fileUrl) {
+      return t(
+        state.permissionMap[item.id]
+          ? 'permission.fileAccessEnabled'
+          : 'permission.fileAccessDisabled',
+        {},
+        locale
+      );
+    }
     try {
       return item.url ? deriveOriginPattern(item.url) : t('permission.urlUnset', {}, locale);
     } catch {
@@ -1068,7 +1083,7 @@ function renderDetail() {
   fragment.querySelector('#permission-origin-text').textContent = permissionOriginText;
   fragment.querySelector('#grant-inline').disabled = !permissionMissing || !permissionResolvable;
   fragment.querySelector('#revoke-inline').disabled = permissionMissing || !permissionResolvable;
-  fragment.querySelector('#file-access-note').hidden = !fileUrl;
+  fragment.querySelector('#file-access-note').hidden = !(fileUrl && permissionMissing);
 
   renderActions(fragment.querySelector('#action-list'), item);
   detailRootEl.replaceChildren(fragment);
