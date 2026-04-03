@@ -146,11 +146,21 @@ test.describe('options page', () => {
 
     await page.locator('#save-format').selectOption('pdf');
     await expect(page.locator('#pdf-landscape')).toBeVisible();
+    await expect(page.locator('#pdf-margin-preset')).toHaveValue('default');
+
+    const marginOptions = await page.locator('#pdf-margin-preset').evaluate((node) =>
+      Array.from(node.options).map((option) => option.value)
+    );
+    expect(marginOptions).toEqual(['none', 'narrow', 'default', 'wide', 'extraWide']);
 
     await page.locator('#pdf-landscape').selectOption('true');
-    await page.locator('#pdf-paper-size').selectOption('tabloid');
+    await page.locator('#pdf-paper-size').selectOption('b3');
     await page.locator('#pdf-margin-preset').selectOption('none');
     await page.locator('#pdf-print-background').selectOption('false');
+    await page.locator('#pdf-scale-percent').selectOption('50');
+    await page.locator('#pdf-display-header-footer').selectOption('false');
+    await page.locator('#pdf-prefer-css-page-size').selectOption('false');
+    await page.locator('#pdf-generate-document-outline').selectOption('false');
     await page.locator('#save-all').click();
 
     await expect(page.locator('#save-all')).toBeDisabled();
@@ -158,18 +168,64 @@ test.describe('options page', () => {
 
     await expect(page.locator('#save-format')).toHaveValue('pdf');
     await expect(page.locator('#pdf-landscape')).toHaveValue('true');
-    await expect(page.locator('#pdf-paper-size')).toHaveValue('tabloid');
+    await expect(page.locator('#pdf-paper-size')).toHaveValue('b3');
     await expect(page.locator('#pdf-margin-preset')).toHaveValue('none');
     await expect(page.locator('#pdf-print-background')).toHaveValue('false');
+    await expect(page.locator('#pdf-scale-percent')).toHaveValue('50');
+    await expect(page.locator('#pdf-display-header-footer')).toHaveValue('false');
+    await expect(page.locator('#pdf-prefer-css-page-size')).toHaveValue('false');
+    await expect(page.locator('#pdf-generate-document-outline')).toHaveValue('false');
 
     const stored = await readExtensionState(['items']);
     expect(stored.items[0].saveFormat).toBe('pdf');
     expect(stored.items[0].pdfOptions).toEqual({
       landscape: true,
-      paperSize: 'tabloid',
+      displayHeaderFooter: false,
+      preferCssPageSize: false,
+      generateDocumentOutline: false,
+      paperSize: 'b3',
       marginPreset: 'none',
       printBackground: false,
+      scalePercent: 50,
     });
+  });
+
+  test('shows required marks only for freeform inputs that fail validation when left blank', async ({
+    baseURL,
+    extensionId,
+    page,
+    resetExtensionState,
+  }) => {
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/options.html`);
+    await resetExtensionState(buildSeedState(baseURL));
+    await page.reload();
+
+    await expect(page.locator('[data-role="label-url"] .required-symbol')).toHaveText('(*)');
+    await expect(page.locator('[data-role="label-save-format"] .required-symbol')).toHaveCount(0);
+    await expect(page.locator('[data-role="label-download-folder"] .required-symbol')).toHaveCount(
+      0
+    );
+    await expect(page.locator('[data-role="label-wait-before"] .required-symbol')).toHaveCount(0);
+    await expect(page.locator('[data-role="label-close-tab"] .required-symbol')).toHaveCount(0);
+    await expect(page.locator('[data-role="label-schedule-start"] .required-symbol')).toHaveText(
+      '(*)'
+    );
+    await expect(page.locator('[data-role="label-schedule-mode"] .required-symbol')).toHaveCount(
+      0
+    );
+
+    await page.locator('#save-format').selectOption('pdf');
+    await expect(page.locator('[data-role="label-pdf-paper-size"] .required-symbol')).toHaveCount(
+      0
+    );
+
+    await page.locator('#add-action').click();
+    await expect(page.locator('[data-role="label-selector"] .required-symbol')).toHaveText('(*)');
+    await expect(page.locator('[data-role="label-text"] .required-symbol')).toHaveText('(*)');
+    await expect(page.locator('[data-role="label-operator"] .required-symbol')).toHaveCount(0);
+    await expect(page.locator('[data-role="label-wait-after-click"] .required-symbol')).toHaveCount(0);
   });
 
   test('shows a preview of the saved file path', async ({
@@ -185,7 +241,7 @@ test.describe('options page', () => {
     await page.reload();
 
     await expect(page.locator('#output-path-preview')).toHaveText(
-      'Browser default downloads folder/capture-target_20300102_030405.html'
+      '[Browser default downloads folder]/capture-target_20300102_030405.html'
     );
 
     await page.locator('#download-folder').fill('reports/daily');
@@ -193,7 +249,7 @@ test.describe('options page', () => {
     await page.locator('#save-format').selectOption('pdf');
 
     await expect(page.locator('#output-path-preview')).toHaveText(
-      'Browser default downloads folder/reports/daily/team_snapshot_20300102_030405.pdf'
+      '[Browser default downloads folder]/reports/daily/team_snapshot_20300102_030405.pdf'
     );
   });
 
@@ -213,20 +269,26 @@ test.describe('options page', () => {
     await page.locator('#save-format').selectOption('jpeg');
     await expect(page.locator('#image-jpeg-quality')).toBeVisible();
     await expect(page.locator('#pdf-landscape')).toHaveCount(0);
+    await expect(page.locator('#image-jpeg-quality')).toHaveAttribute(
+      'placeholder',
+      'Leave blank to use 90'
+    );
 
-    await page.locator('#image-jpeg-quality').fill('72');
+    await page.locator('#image-jpeg-quality').fill('140');
+    await page.locator('#name-input').click();
+    await expect(page.locator('#image-jpeg-quality')).toHaveValue('100');
     await page.locator('#save-all').click();
 
     await expect(page.locator('#save-all')).toBeDisabled();
     await page.reload();
 
     await expect(page.locator('#save-format')).toHaveValue('jpeg');
-    await expect(page.locator('#image-jpeg-quality')).toHaveValue('72');
+    await expect(page.locator('#image-jpeg-quality')).toHaveValue('100');
 
     const stored = await readExtensionState(['items']);
     expect(stored.items[0].saveFormat).toBe('jpeg');
     expect(stored.items[0].imageOptions).toEqual({
-      jpegQuality: 72,
+      jpegQuality: 100,
     });
   });
 
@@ -336,6 +398,53 @@ test.describe('options page', () => {
     });
 
     expect(monthlyComputation.nextLocal).toBe('2026-02-28T08:15');
+  });
+
+  test('shows the next run time for each schedule card', async ({
+    baseURL,
+    extensionId,
+    page,
+    resetExtensionState,
+  }) => {
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/options.html`);
+    await resetExtensionState(buildSeedState(baseURL));
+    await page.reload();
+
+    await expect(page.locator('[data-role="schedule-next-run-value"]').first()).toContainText(
+      '2030'
+    );
+  });
+
+  test('requires a complete start date/time before save', async ({
+    baseURL,
+    extensionId,
+    page,
+    resetExtensionState,
+  }) => {
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/options.html`);
+    await resetExtensionState(buildSeedState(baseURL));
+    await page.reload();
+
+    const startAt = page.locator('[data-schedule-index="0"][data-schedule-field="startAt"]');
+
+    await startAt.evaluate((node) => {
+      node.value = '';
+      node.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    await expect(page.locator('#save-all')).toBeDisabled();
+    await expect(page.locator('#detail-validation')).toContainText(
+      'Enter both the date and time for start date/time'
+    );
+
+    await startAt.fill('2030-01-02T09:45');
+
+    await expect(page.locator('#detail-validation')).toBeHidden();
+    await expect(page.locator('#save-all')).toBeEnabled();
   });
 
   test('persists action settings for all supported action types after save', async ({
@@ -539,5 +648,52 @@ test.describe('options page', () => {
 
     const stored = await readExtensionState(['items']);
     expect(stored.items[0].url).toBe('file:///tmp/auto-page-capture-updated.html');
+  });
+
+  test('removes the permission warning frame after permission is granted', async ({
+    baseURL,
+    extensionId,
+    page,
+    resetExtensionState,
+  }) => {
+    const originPattern = `${new URL(baseURL).origin}/*`;
+
+    await page.addInitScript((expectedOriginPattern) => {
+      let granted = false;
+      const originalContains = chrome.permissions.contains.bind(chrome.permissions);
+
+      chrome.permissions.contains = async (details) => {
+        if (details?.origins?.length === 1 && details.origins[0] === expectedOriginPattern) {
+          return granted;
+        }
+        return await originalContains(details);
+      };
+
+      chrome.permissions.request = async (details) => {
+        if (details?.origins?.length === 1 && details.origins[0] === expectedOriginPattern) {
+          granted = true;
+          return true;
+        }
+        return false;
+      };
+
+      chrome.permissions.remove = async (details) => {
+        if (details?.origins?.length === 1 && details.origins[0] === expectedOriginPattern) {
+          granted = false;
+          return true;
+        }
+        return false;
+      };
+    }, originPattern);
+
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/options.html`);
+    await resetExtensionState(buildSeedState(baseURL));
+    await page.reload();
+
+    await expect(page.locator('#permission-warning')).toBeVisible();
+    await page.locator('#grant-top').click();
+    await expect(page.locator('#permission-warning')).toHaveCount(0);
   });
 });

@@ -456,9 +456,18 @@ button:disabled {
 .embedded-settings-block .group-head h3 {
   font-size: 14px;
 }
+.pdf-settings-grid {
+  align-items: start;
+}
+.pdf-settings-grid .field span {
+  line-height: 1.35;
+}
 .small-text {
   font-size: 12px;
   color: var(--muted);
+}
+.output-path-preview-field {
+  margin-bottom: 12px;
 }
 .path-preview {
   display: block;
@@ -518,6 +527,32 @@ button:disabled {
   gap: 12px;
   align-items: center;
   margin-bottom: 10px;
+}
+.schedule-head-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.schedule-next-run {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 170px;
+}
+.schedule-next-run span {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.schedule-next-run strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: right;
+  white-space: nowrap;
 }
 .schedule-layout {
   display: grid;
@@ -806,6 +841,16 @@ button:disabled {
   }
   .schedule-head {
     align-items: flex-start;
+  }
+  .schedule-head-side,
+  .schedule-next-run {
+    width: 100%;
+  }
+  .schedule-head-side {
+    justify-content: space-between;
+  }
+  .schedule-next-run {
+    justify-content: flex-start;
   }
 }
 

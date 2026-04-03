@@ -45,6 +45,32 @@ function appendTextNode(parent, tagName, text) {
   return node;
 }
 
+function basenameFromPathLike(text) {
+  const normalized = String(text || '').trim().replace(/\\/g, '/');
+  if (!normalized) {
+    return '';
+  }
+  const parts = normalized.split('/').filter(Boolean);
+  return parts.at(-1) || normalized;
+}
+
+function compactHistoryMessage(message, maxLength = 120) {
+  const normalized = String(message || '')
+    .trim()
+    .replace(/\s+/g, ' ');
+  if (!normalized) {
+    return '';
+  }
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 3)}...` : normalized;
+}
+
+function historyDetailText(entry) {
+  if (entry.filename) {
+    return basenameFromPathLike(entry.filename);
+  }
+  return compactHistoryMessage(entry.message);
+}
+
 async function permissionMissing(item) {
   try {
     if (!item.url) {
@@ -167,20 +193,19 @@ async function render() {
       row.className = 'history-row';
       const main = document.createElement('div');
       main.className = 'history-main';
-      appendTextNode(main, 'strong', entry.itemName);
-      appendTextNode(
+      const title = appendTextNode(main, 'strong', entry.itemName);
+      title.className = 'history-title';
+      const meta = appendTextNode(
         main,
         'p',
         `${executionStatusLabel(entry.status, entry.errorCode || '', locale)} / ${formatDateTime(entry.at, locale)}`
       );
-      if (entry.filename) {
-        appendTextNode(main, 'p', entry.filename);
-      }
-      if (entry.message) {
-        appendTextNode(main, 'p', entry.message);
-      }
-      if (!entry.filename && !entry.message) {
-        appendTextNode(main, 'p', '');
+      meta.className = 'history-meta';
+      const detailText = historyDetailText(entry);
+      if (detailText) {
+        const detail = appendTextNode(main, 'p', detailText);
+        detail.className = 'history-detail';
+        detail.title = entry.filename || String(entry.message || '').trim();
       }
       row.append(main);
       historyEl.append(row);

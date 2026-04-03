@@ -2,6 +2,7 @@ import {
   ACTION_TYPES,
   PDF_MARGIN_OPTIONS,
   PDF_PAPER_SIZE_OPTIONS,
+  PDF_SCALE_PERCENT_OPTIONS,
   SAVE_FORMATS,
   SCHEDULE_INTERVAL_UNIT_OPTIONS,
   SCHEDULE_MODE_OPTIONS,
@@ -18,7 +19,9 @@ import {
   normalizeAction,
   normalizeAppSettings,
   normalizeItem,
+  normalizePdfOptions,
   normalizeSchedule,
+  nextOccurrenceForSchedule,
   saveFormatLabel,
   summarizeItem,
   uid,
@@ -85,13 +88,111 @@ const state = {
 };
 
 let pendingImportMode = 'replace';
+const FIELD_LABEL_META = Object.freeze({
+  url: { key: 'fields.url', required: true },
+  saveFormat: { key: 'fields.saveFormat', required: false },
+  downloadFolder: {
+    key: 'fields.downloadFolder',
+    required: false,
+  },
+  filenamePrefix: {
+    key: 'fields.filenamePrefix',
+    required: false,
+  },
+  waitBefore: { key: 'fields.waitBefore', required: false },
+  waitAfter: { key: 'fields.waitAfter', required: false },
+  closeTab: { key: 'fields.closeTab', required: false },
+  scheduleStartAt: {
+    key: 'schedule.startAt',
+    required: true,
+  },
+  scheduleEndAt: { key: 'schedule.endAt', required: false },
+  scheduleMode: { key: 'schedule.mode', required: false },
+  scheduleEvery: { key: 'schedule.every', required: false },
+  scheduleUnit: { key: 'schedule.unit', required: false },
+  scheduleMonthlyDay: {
+    key: 'schedule.monthlyDay',
+    required: false,
+  },
+  pdfOrientation: {
+    key: 'fields.pdfOrientation',
+    required: false,
+  },
+  pdfPaperSize: {
+    key: 'fields.pdfPaperSize',
+    required: false,
+  },
+  pdfMargins: { key: 'fields.pdfMargins', required: false },
+  pdfBackground: {
+    key: 'fields.pdfBackground',
+    required: false,
+  },
+  pdfScale: { key: 'fields.pdfScale', required: false },
+  pdfHeaderFooter: { key: 'fields.pdfHeaderFooter', required: false },
+  pdfCssPageSize: { key: 'fields.pdfPreferCssPageSize', required: false },
+  pdfDocumentOutline: { key: 'fields.pdfDocumentOutline', required: false },
+  jpegQuality: { key: 'fields.jpegQuality', required: false },
+  cssSelector: { key: 'fields.cssSelector', required: true },
+  xpath: { key: 'fields.xpath', required: true },
+  value: { key: 'fields.value', required: true },
+  dispatchInput: {
+    key: 'fields.dispatchInput',
+    required: false,
+  },
+  dispatchChange: {
+    key: 'fields.dispatchChange',
+    required: false,
+  },
+  selectorType: {
+    key: 'fields.selectorType',
+    required: false,
+  },
+  selector: { key: 'fields.selector', required: true },
+  timeoutMs: { key: 'fields.timeoutMs', required: false },
+  attributeName: {
+    key: 'fields.attributeName',
+    required: true,
+  },
+  expectedValue: {
+    key: 'fields.expectedValue',
+    required: true,
+  },
+  operator: { key: 'fields.operator', required: false },
+  fixedWaitMs: {
+    key: 'fields.fixedWaitMs',
+    required: false,
+  },
+  textSourceSelector: {
+    key: 'fields.textSourceSelector',
+    required: false,
+  },
+  text: { key: 'fields.text', required: true },
+  waitMs: { key: 'fields.waitMs', required: false },
+  waitAfterClick: {
+    key: 'fields.waitAfterClick',
+    required: false,
+  },
+});
+
+const FIELD_NUMBER_CONSTRAINTS = Object.freeze({
+  'wait-before': { min: 0 },
+  'wait-after': { min: 0 },
+  'image-jpeg-quality': { min: 1, max: 100 },
+});
+
+const SCHEDULE_NUMBER_CONSTRAINTS = Object.freeze({
+  intervalValue: { min: 1 },
+  monthlyDay: { min: 1, max: 31 },
+});
+
+const ACTION_NUMBER_CONSTRAINTS = Object.freeze({
+  waitAfterMs: { min: 0 },
+  timeoutMs: { min: 100 },
+  ms: { min: 0 },
+});
 
 function currentLocale() {
   return resolveLocale(state.appSettings.uiLanguage);
-}
-
-function currentRequiredMark() {
-  return t('common.requiredMark', {}, currentLocale());
 }
 
 function localizeStaticPage() {
@@ -212,7 +313,19 @@ function setDirty(value) {
 
 function updateDirtyState() {
   refreshValidation();
+  syncActiveDetailValidation();
   setDirty(hasUnsavedChanges());
+}
+
+function syncActiveDetailValidation() {
+  const item = getSelectedItem();
+  const validationEl = document.getElementById('detail-validation');
+  if (!item || !validationEl) {
+    return;
+  }
+  const validation = state.validationMap[item.id] || validateItem(item, currentLocale());
+  validationEl.hidden = validation.ok;
+  validationEl.textContent = validation.ok ? '' : validation.errors[0];
 }
 
 function refreshValidation() {
@@ -360,18 +473,54 @@ function renderLogs() {
   });
 }
 
-function requiredMark(locale = currentLocale()) {
+function requiredMarkHtml(locale = currentLocale()) {
   return `<span class="required-symbol">${escapeHtml(t('common.requiredMark', {}, locale))}</span>`;
 }
 
-function localizedLabelHtml(key, params = {}, locale = currentLocale()) {
-  const mark = t('common.requiredMark', {}, locale);
-  const translated = escapeHtml(t(key, params, locale));
-  const markEscaped = escapeHtml(mark);
-  if (!markEscaped || !translated.includes(markEscaped)) {
-    return translated;
+function baseLabelText(key, params = {}, locale = currentLocale()) {
+  return t(key, { ...params, required: '' }, locale).replace(/\s+/g, ' ').trim();
+}
+
+function renderFieldLabelHtml(fieldKey, locale = currentLocale(), params = {}) {
+  const meta = FIELD_LABEL_META[fieldKey];
+  if (!meta) {
+    return escapeHtml(baseLabelText(fieldKey, params, locale));
   }
-  return translated.replaceAll(markEscaped, requiredMark(locale));
+
+  const labelText = escapeHtml(baseLabelText(meta.key, params, locale));
+  if (meta.required) {
+    return `${labelText} ${requiredMarkHtml(locale)}`;
+  }
+  return labelText;
+}
+
+function setFieldLabel(root, selector, fieldKey, locale, params = {}) {
+  return setHtml(root, selector, renderFieldLabelHtml(fieldKey, locale, params));
+}
+
+function constrainNumberValue(rawValue, constraints = {}) {
+  const numeric = Number(rawValue);
+  if (!Number.isFinite(numeric)) {
+    return '';
+  }
+  const min = Number.isFinite(constraints.min) ? constraints.min : -Infinity;
+  const max = Number.isFinite(constraints.max) ? constraints.max : Infinity;
+  return Math.max(min, Math.min(max, numeric));
+}
+
+function getConstrainedNumericInputValue(target, constraints = {}) {
+  if (target.value === '') {
+    return '';
+  }
+  const constrained = constrainNumberValue(target.value, constraints);
+  if (constrained === '') {
+    return '';
+  }
+  const normalized = String(constrained);
+  if (target.value !== normalized) {
+    target.value = normalized;
+  }
+  return constrained;
 }
 
 function toDateTimeLocalValue(value) {
@@ -432,16 +581,8 @@ function buildScheduleRecurrenceFields(schedule, index, locale) {
   let fragment;
   if (schedule.scheduleMode === 'interval') {
     fragment = cloneTemplate(scheduleIntervalFieldsTemplate);
-    setHtml(
-      fragment,
-      '[data-role="label-schedule-every"]',
-      localizedLabelHtml('schedule.every', { required: currentRequiredMark() }, locale)
-    );
-    setHtml(
-      fragment,
-      '[data-role="label-schedule-unit"]',
-      localizedLabelHtml('schedule.unit', { required: currentRequiredMark() }, locale)
-    );
+    setFieldLabel(fragment, '[data-role="label-schedule-every"]', 'scheduleEvery', locale);
+    setFieldLabel(fragment, '[data-role="label-schedule-unit"]', 'scheduleUnit', locale);
     const intervalValueInput = fragment.querySelector('[data-schedule-field="intervalValue"]');
     intervalValueInput.dataset.scheduleIndex = String(index);
     intervalValueInput.value = String(schedule.intervalValue ?? '');
@@ -456,10 +597,11 @@ function buildScheduleRecurrenceFields(schedule, index, locale) {
     );
   } else if (schedule.scheduleMode === 'monthly') {
     fragment = cloneTemplate(scheduleMonthlyFieldsTemplate);
-    setHtml(
+    setFieldLabel(
       fragment,
       '[data-role="label-schedule-monthly-day"]',
-      localizedLabelHtml('schedule.monthlyDay', { required: currentRequiredMark() }, locale)
+      'scheduleMonthlyDay',
+      locale
     );
     const monthlyDayInput = fragment.querySelector('[data-schedule-field="monthlyDay"]');
     monthlyDayInput.dataset.scheduleIndex = String(index);
@@ -493,16 +635,14 @@ function buildScheduleRow(schedule, index, locale) {
   card.querySelector('[data-schedule-field="enabled"]').checked = schedule.enabled !== false;
   card.querySelector('[data-action="remove-schedule"]').hidden = index === 0;
   setText(card, '[data-role="schedule-title"]', t('schedule.title', { index: index + 1 }, locale));
-  setHtml(
+  setFieldLabel(card, '[data-role="label-schedule-start"]', 'scheduleStartAt', locale);
+  setFieldLabel(card, '[data-role="label-schedule-end"]', 'scheduleEndAt', locale);
+  setFieldLabel(card, '[data-role="label-schedule-mode"]', 'scheduleMode', locale);
+  const nextRun = nextOccurrenceForSchedule(schedule);
+  setText(
     card,
-    '[data-role="label-schedule-start"]',
-    localizedLabelHtml('schedule.startAt', { required: currentRequiredMark() }, locale)
-  );
-  setText(card, '[data-role="label-schedule-end"]', t('schedule.endAt', {}, locale));
-  setHtml(
-    card,
-    '[data-role="label-schedule-mode"]',
-    localizedLabelHtml('schedule.mode', { required: currentRequiredMark() }, locale)
+    '[data-role="schedule-next-run-value"]',
+    nextRun ? formatDateTime(nextRun.toISOString(), locale) : t('shared.timeUnset', {}, locale)
   );
 
   card.querySelector('[data-schedule-field="startAt"]').value = toDateTimeLocalValue(
@@ -546,48 +686,24 @@ function buildActionFieldsNode(action, index, locale) {
   switch (action.type) {
     case 'clickSelector':
       fragment = cloneTemplate(actionClickSelectorFieldsTemplate);
-      setHtml(
-        fragment,
-        '[data-role="label-css-selector"]',
-        localizedLabelHtml('fields.cssSelector', { required: currentRequiredMark() }, locale)
-      );
-      setText(fragment, '[data-role="label-wait-ms"]', t('fields.waitMs', {}, locale));
+      setFieldLabel(fragment, '[data-role="label-css-selector"]', 'cssSelector', locale);
+      setFieldLabel(fragment, '[data-role="label-wait-ms"]', 'waitMs', locale);
       fragment.querySelector('[data-action-field="selector"]').value = action.selector;
       fragment.querySelector('[data-action-field="waitAfterMs"]').value = String(action.waitAfterMs);
       break;
     case 'clickXPath':
       fragment = cloneTemplate(actionClickXPathFieldsTemplate);
-      setHtml(
-        fragment,
-        '[data-role="label-xpath"]',
-        localizedLabelHtml('fields.xpath', { required: currentRequiredMark() }, locale)
-      );
-      setText(fragment, '[data-role="label-wait-ms"]', t('fields.waitMs', {}, locale));
+      setFieldLabel(fragment, '[data-role="label-xpath"]', 'xpath', locale);
+      setFieldLabel(fragment, '[data-role="label-wait-ms"]', 'waitMs', locale);
       fragment.querySelector('[data-action-field="xpath"]').value = action.xpath;
       fragment.querySelector('[data-action-field="waitAfterMs"]').value = String(action.waitAfterMs);
       break;
     case 'setValue':
       fragment = cloneTemplate(actionSetValueFieldsTemplate);
-      setHtml(
-        fragment,
-        '[data-role="label-css-selector"]',
-        localizedLabelHtml('fields.cssSelector', { required: currentRequiredMark() }, locale)
-      );
-      setHtml(
-        fragment,
-        '[data-role="label-value"]',
-        localizedLabelHtml('fields.value', { required: currentRequiredMark() }, locale)
-      );
-      setHtml(
-        fragment,
-        '[data-role="label-dispatch-input"]',
-        localizedLabelHtml('fields.dispatchInput', { required: currentRequiredMark() }, locale)
-      );
-      setHtml(
-        fragment,
-        '[data-role="label-dispatch-change"]',
-        localizedLabelHtml('fields.dispatchChange', { required: currentRequiredMark() }, locale)
-      );
+      setFieldLabel(fragment, '[data-role="label-css-selector"]', 'cssSelector', locale);
+      setFieldLabel(fragment, '[data-role="label-value"]', 'value', locale);
+      setFieldLabel(fragment, '[data-role="label-dispatch-input"]', 'dispatchInput', locale);
+      setFieldLabel(fragment, '[data-role="label-dispatch-change"]', 'dispatchChange', locale);
       fragment.querySelector('[data-action-field="selector"]').value = action.selector;
       fragment.querySelector('[data-action-field="value"]').value = action.value;
       populateSelectOptions(
@@ -605,17 +721,9 @@ function buildActionFieldsNode(action, index, locale) {
       break;
     case 'waitForExists':
       fragment = cloneTemplate(actionWaitForExistsFieldsTemplate);
-      setHtml(
-        fragment,
-        '[data-role="label-selector-type"]',
-        localizedLabelHtml('fields.selectorType', { required: currentRequiredMark() }, locale)
-      );
-      setHtml(
-        fragment,
-        '[data-role="label-selector"]',
-        localizedLabelHtml('fields.selector', { required: currentRequiredMark() }, locale)
-      );
-      setText(fragment, '[data-role="label-timeout-ms"]', t('fields.timeoutMs', {}, locale));
+      setFieldLabel(fragment, '[data-role="label-selector-type"]', 'selectorType', locale);
+      setFieldLabel(fragment, '[data-role="label-selector"]', 'selector', locale);
+      setFieldLabel(fragment, '[data-role="label-timeout-ms"]', 'timeoutMs', locale);
       populateSelectOptions(
         fragment.querySelector('[data-action-field="selectorType"]'),
         selectorTypeOptions,
@@ -627,17 +735,9 @@ function buildActionFieldsNode(action, index, locale) {
       break;
     case 'waitForNotExists':
       fragment = cloneTemplate(actionWaitForNotExistsFieldsTemplate);
-      setHtml(
-        fragment,
-        '[data-role="label-selector-type"]',
-        localizedLabelHtml('fields.selectorType', { required: currentRequiredMark() }, locale)
-      );
-      setHtml(
-        fragment,
-        '[data-role="label-selector"]',
-        localizedLabelHtml('fields.selector', { required: currentRequiredMark() }, locale)
-      );
-      setText(fragment, '[data-role="label-timeout-ms"]', t('fields.timeoutMs', {}, locale));
+      setFieldLabel(fragment, '[data-role="label-selector-type"]', 'selectorType', locale);
+      setFieldLabel(fragment, '[data-role="label-selector"]', 'selector', locale);
+      setFieldLabel(fragment, '[data-role="label-timeout-ms"]', 'timeoutMs', locale);
       populateSelectOptions(
         fragment.querySelector('[data-action-field="selectorType"]'),
         selectorTypeOptions,
@@ -649,32 +749,12 @@ function buildActionFieldsNode(action, index, locale) {
       break;
     case 'waitForAttribute':
       fragment = cloneTemplate(actionWaitForAttributeFieldsTemplate);
-      setHtml(
-        fragment,
-        '[data-role="label-selector-type"]',
-        localizedLabelHtml('fields.selectorType', { required: currentRequiredMark() }, locale)
-      );
-      setHtml(
-        fragment,
-        '[data-role="label-selector"]',
-        localizedLabelHtml('fields.selector', { required: currentRequiredMark() }, locale)
-      );
-      setHtml(
-        fragment,
-        '[data-role="label-attribute-name"]',
-        localizedLabelHtml('fields.attributeName', { required: currentRequiredMark() }, locale)
-      );
-      setHtml(
-        fragment,
-        '[data-role="label-expected-value"]',
-        localizedLabelHtml('fields.expectedValue', { required: currentRequiredMark() }, locale)
-      );
-      setHtml(
-        fragment,
-        '[data-role="label-operator"]',
-        localizedLabelHtml('fields.operator', { required: currentRequiredMark() }, locale)
-      );
-      setText(fragment, '[data-role="label-timeout-ms"]', t('fields.timeoutMs', {}, locale));
+      setFieldLabel(fragment, '[data-role="label-selector-type"]', 'selectorType', locale);
+      setFieldLabel(fragment, '[data-role="label-selector"]', 'selector', locale);
+      setFieldLabel(fragment, '[data-role="label-attribute-name"]', 'attributeName', locale);
+      setFieldLabel(fragment, '[data-role="label-expected-value"]', 'expectedValue', locale);
+      setFieldLabel(fragment, '[data-role="label-operator"]', 'operator', locale);
+      setFieldLabel(fragment, '[data-role="label-timeout-ms"]', 'timeoutMs', locale);
       populateSelectOptions(
         fragment.querySelector('[data-action-field="selectorType"]'),
         selectorTypeOptions,
@@ -696,37 +776,22 @@ function buildActionFieldsNode(action, index, locale) {
       break;
     case 'wait':
       fragment = cloneTemplate(actionWaitFieldsTemplate);
-      setText(fragment, '[data-role="label-fixed-wait-ms"]', t('fields.fixedWaitMs', {}, locale));
+      setFieldLabel(fragment, '[data-role="label-fixed-wait-ms"]', 'fixedWaitMs', locale);
       fragment.querySelector('[data-action-field="ms"]').value = String(action.ms);
       break;
     case 'clickText':
     default:
       fragment = cloneTemplate(actionClickTextFieldsTemplate);
-      setHtml(
-        fragment,
-        '[data-role="label-selector"]',
-        localizedLabelHtml('fields.selector', { required: currentRequiredMark() }, locale)
-      );
-      setText(
+      setFieldLabel(fragment, '[data-role="label-selector"]', 'selector', locale);
+      setFieldLabel(
         fragment,
         '[data-role="label-text-source-selector"]',
-        t('fields.textSourceSelector', {}, locale)
+        'textSourceSelector',
+        locale
       );
-      setHtml(
-        fragment,
-        '[data-role="label-text"]',
-        localizedLabelHtml('fields.text', { required: currentRequiredMark() }, locale)
-      );
-      setHtml(
-        fragment,
-        '[data-role="label-operator"]',
-        localizedLabelHtml('fields.operator', { required: currentRequiredMark() }, locale)
-      );
-      setText(
-        fragment,
-        '[data-role="label-wait-after-click"]',
-        t('fields.waitAfterClick', {}, locale)
-      );
+      setFieldLabel(fragment, '[data-role="label-text"]', 'text', locale);
+      setFieldLabel(fragment, '[data-role="label-operator"]', 'operator', locale);
+      setFieldLabel(fragment, '[data-role="label-wait-after-click"]', 'waitAfterClick', locale);
       fragment.querySelector('[data-action-field="selector"]').value = action.selector;
       fragment.querySelector('[data-action-field="textSourceSelector"]').value =
         action.textSourceSelector || '';
@@ -787,28 +852,22 @@ function renderActions(container, item) {
 
 function buildOutputSettingsNode(item, locale) {
   if (item.saveFormat === 'pdf') {
+    const pdfOptions = normalizePdfOptions(item.pdfOptions);
     const fragment = cloneTemplate(pdfOutputSettingsTemplate);
     const root = fragment.firstElementChild;
     applyI18n(fragment, locale);
-    setHtml(
+    setFieldLabel(root, '[data-role="label-pdf-orientation"]', 'pdfOrientation', locale);
+    setFieldLabel(root, '[data-role="label-pdf-paper-size"]', 'pdfPaperSize', locale);
+    setFieldLabel(root, '[data-role="label-pdf-margins"]', 'pdfMargins', locale);
+    setFieldLabel(root, '[data-role="label-pdf-background"]', 'pdfBackground', locale);
+    setFieldLabel(root, '[data-role="label-pdf-scale"]', 'pdfScale', locale);
+    setFieldLabel(root, '[data-role="label-pdf-header-footer"]', 'pdfHeaderFooter', locale);
+    setFieldLabel(root, '[data-role="label-pdf-css-page-size"]', 'pdfCssPageSize', locale);
+    setFieldLabel(
       root,
-      '[data-role="label-pdf-orientation"]',
-      localizedLabelHtml('fields.pdfOrientation', { required: currentRequiredMark() }, locale)
-    );
-    setHtml(
-      root,
-      '[data-role="label-pdf-paper-size"]',
-      localizedLabelHtml('fields.pdfPaperSize', { required: currentRequiredMark() }, locale)
-    );
-    setHtml(
-      root,
-      '[data-role="label-pdf-margins"]',
-      localizedLabelHtml('fields.pdfMargins', { required: currentRequiredMark() }, locale)
-    );
-    setHtml(
-      root,
-      '[data-role="label-pdf-background"]',
-      localizedLabelHtml('fields.pdfBackground', { required: currentRequiredMark() }, locale)
+      '[data-role="label-pdf-document-outline"]',
+      'pdfDocumentOutline',
+      locale
     );
     populateSelectOptions(
       root.querySelector('#pdf-landscape'),
@@ -816,7 +875,7 @@ function buildOutputSettingsNode(item, locale) {
         { value: 'false', label: t('fields.orientationPortrait', {}, locale) },
         { value: 'true', label: t('fields.orientationLandscape', {}, locale) },
       ],
-      String(item.pdfOptions.landscape),
+      String(pdfOptions.landscape),
       locale
     );
     populateSelectOptions(
@@ -825,7 +884,7 @@ function buildOutputSettingsNode(item, locale) {
         value: option.value,
         label: t(option.labelKey, {}, locale),
       })),
-      item.pdfOptions.paperSize,
+      pdfOptions.paperSize,
       locale
     );
     populateSelectOptions(
@@ -834,7 +893,7 @@ function buildOutputSettingsNode(item, locale) {
         value: option.value,
         label: t(option.labelKey, {}, locale),
       })),
-      item.pdfOptions.marginPreset,
+      pdfOptions.marginPreset,
       locale
     );
     populateSelectOptions(
@@ -843,7 +902,43 @@ function buildOutputSettingsNode(item, locale) {
         { value: 'true', label: t('fields.pdfBackgroundTrue', {}, locale) },
         { value: 'false', label: t('fields.pdfBackgroundFalse', {}, locale) },
       ],
-      String(item.pdfOptions.printBackground),
+      String(pdfOptions.printBackground),
+      locale
+    );
+    populateSelectOptions(
+      root.querySelector('#pdf-scale-percent'),
+      PDF_SCALE_PERCENT_OPTIONS.map((value) => ({
+        value: String(value),
+        label: `${value}%`,
+      })),
+      String(pdfOptions.scalePercent),
+      locale
+    );
+    populateSelectOptions(
+      root.querySelector('#pdf-display-header-footer'),
+      [
+        { value: 'false', label: t('fields.pdfHeaderFooterFalse', {}, locale) },
+        { value: 'true', label: t('fields.pdfHeaderFooterTrue', {}, locale) },
+      ],
+      String(pdfOptions.displayHeaderFooter),
+      locale
+    );
+    populateSelectOptions(
+      root.querySelector('#pdf-prefer-css-page-size'),
+      [
+        { value: 'false', label: t('fields.pdfPreferCssPageSizeFalse', {}, locale) },
+        { value: 'true', label: t('fields.pdfPreferCssPageSizeTrue', {}, locale) },
+      ],
+      String(pdfOptions.preferCssPageSize),
+      locale
+    );
+    populateSelectOptions(
+      root.querySelector('#pdf-generate-document-outline'),
+      [
+        { value: 'false', label: t('fields.pdfDocumentOutlineFalse', {}, locale) },
+        { value: 'true', label: t('fields.pdfDocumentOutlineTrue', {}, locale) },
+      ],
+      String(pdfOptions.generateDocumentOutline),
       locale
     );
     return root;
@@ -852,7 +947,7 @@ function buildOutputSettingsNode(item, locale) {
     const fragment = cloneTemplate(jpegOutputSettingsTemplate);
     const root = fragment.firstElementChild;
     applyI18n(fragment, locale);
-    setText(root, '[data-role="label-jpeg-quality"]', t('fields.jpegQuality', {}, locale));
+    setFieldLabel(root, '[data-role="label-jpeg-quality"]', 'jpegQuality', locale);
     root.querySelector('#image-jpeg-quality').value = String(item.imageOptions.jpegQuality);
     return root;
   }
@@ -893,23 +988,13 @@ function renderDetail() {
       locale
     )
   );
-  setHtml(
-    fragment,
-    '[data-role="label-url"]',
-    localizedLabelHtml('fields.url', { required: currentRequiredMark() }, locale)
-  );
-  setHtml(
-    fragment,
-    '[data-role="label-save-format"]',
-    localizedLabelHtml('fields.saveFormat', { required: currentRequiredMark() }, locale)
-  );
-  setText(fragment, '[data-role="label-download-folder"]', t('fields.downloadFolder', {}, locale));
-  setText(fragment, '[data-role="label-filename-prefix"]', t('fields.filenamePrefix', {}, locale));
-  setHtml(
-    fragment,
-    '[data-role="label-close-tab"]',
-    localizedLabelHtml('fields.closeTab', { required: currentRequiredMark() }, locale)
-  );
+  setFieldLabel(fragment, '[data-role="label-url"]', 'url', locale);
+  setFieldLabel(fragment, '[data-role="label-save-format"]', 'saveFormat', locale);
+  setFieldLabel(fragment, '[data-role="label-download-folder"]', 'downloadFolder', locale);
+  setFieldLabel(fragment, '[data-role="label-filename-prefix"]', 'filenamePrefix', locale);
+  setFieldLabel(fragment, '[data-role="label-wait-before"]', 'waitBefore', locale);
+  setFieldLabel(fragment, '[data-role="label-wait-after"]', 'waitAfter', locale);
+  setFieldLabel(fragment, '[data-role="label-close-tab"]', 'closeTab', locale);
 
   const validationEl = fragment.querySelector('#detail-validation');
   validationEl.hidden = validation.ok;
@@ -951,8 +1036,8 @@ function renderDetail() {
   }
 
   const permissionWarningEl = fragment.querySelector('#permission-warning');
-  permissionWarningEl.hidden = !permissionMissing;
   if (permissionMissing) {
+    permissionWarningEl.hidden = false;
     fragment.querySelector('#permission-warning-title').textContent = t(
       fileUrl ? 'permission.fileAccessTitle' : 'permission.title',
       {},
@@ -964,6 +1049,8 @@ function renderDetail() {
       locale
     );
     fragment.querySelector('#grant-top').hidden = fileUrl;
+  } else {
+    permissionWarningEl.remove();
   }
 
   const scheduleList = fragment.querySelector('#schedule-list');
@@ -1017,13 +1104,17 @@ async function requestPermission(item) {
     }
     const origin = deriveOriginPattern(item.url);
     const ok = await chrome.permissions.request({ origins: [origin] });
+    const granted = ok
+      ? await chrome.permissions.contains({ origins: [origin] })
+      : await chrome.permissions.contains({ origins: [origin] });
+    state.permissionMap[item.id] = granted;
     await refreshPermissions();
     renderAll();
     setStatus(
-      ok
+      granted
         ? t('status.permissionGranted', {}, currentLocale())
         : t('status.permissionDenied', {}, currentLocale()),
-      !ok
+      !granted
     );
   } catch (error) {
     setStatus(error.message || String(error), true);
@@ -1038,13 +1129,15 @@ async function revokePermission(item) {
     }
     const origin = deriveOriginPattern(item.url);
     const ok = await chrome.permissions.remove({ origins: [origin] });
+    const stillGranted = await chrome.permissions.contains({ origins: [origin] });
+    state.permissionMap[item.id] = stillGranted;
     await refreshPermissions();
     renderAll();
     setStatus(
-      ok
+      ok && !stillGranted
         ? t('status.permissionRevoked', {}, currentLocale())
         : t('status.permissionRevokeDenied', {}, currentLocale()),
-      !ok
+      stillGranted
     );
   } catch (error) {
     setStatus(error.message || String(error), true);
@@ -1213,6 +1306,9 @@ function handleDetailInput(event) {
   }
   if (target.id === 'save-format') {
     item.saveFormat = target.value;
+    if (item.saveFormat === 'pdf') {
+      item.pdfOptions = normalizePdfOptions(item.pdfOptions);
+    }
     updateDirtyState();
     renderSidebar();
     renderDetail();
@@ -1237,12 +1333,18 @@ function handleDetailInput(event) {
     return;
   }
   if (target.id === 'wait-before') {
-    item.waitBeforeActionsMs = target.value === '' ? '' : Number(target.value);
+    item.waitBeforeActionsMs = getConstrainedNumericInputValue(
+      target,
+      FIELD_NUMBER_CONSTRAINTS['wait-before']
+    );
     updateDirtyState();
     return;
   }
   if (target.id === 'wait-after') {
-    item.waitAfterActionsMs = target.value === '' ? '' : Number(target.value);
+    item.waitAfterActionsMs = getConstrainedNumericInputValue(
+      target,
+      FIELD_NUMBER_CONSTRAINTS['wait-after']
+    );
     updateDirtyState();
     return;
   }
@@ -1252,27 +1354,74 @@ function handleDetailInput(event) {
     return;
   }
   if (target.id === 'pdf-landscape') {
-    item.pdfOptions.landscape = target.value === 'true';
+    item.pdfOptions = normalizePdfOptions({
+      ...item.pdfOptions,
+      landscape: target.value === 'true',
+    });
     updateDirtyState();
     return;
   }
   if (target.id === 'pdf-paper-size') {
-    item.pdfOptions.paperSize = target.value;
+    item.pdfOptions = normalizePdfOptions({
+      ...item.pdfOptions,
+      paperSize: target.value,
+    });
     updateDirtyState();
     return;
   }
   if (target.id === 'pdf-margin-preset') {
-    item.pdfOptions.marginPreset = target.value;
+    item.pdfOptions = normalizePdfOptions({
+      ...item.pdfOptions,
+      marginPreset: target.value,
+    });
     updateDirtyState();
     return;
   }
   if (target.id === 'pdf-print-background') {
-    item.pdfOptions.printBackground = target.value === 'true';
+    item.pdfOptions = normalizePdfOptions({
+      ...item.pdfOptions,
+      printBackground: target.value === 'true',
+    });
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'pdf-scale-percent') {
+    item.pdfOptions = normalizePdfOptions({
+      ...item.pdfOptions,
+      scalePercent: Number(target.value) || 100,
+    });
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'pdf-display-header-footer') {
+    item.pdfOptions = normalizePdfOptions({
+      ...item.pdfOptions,
+      displayHeaderFooter: target.value === 'true',
+    });
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'pdf-prefer-css-page-size') {
+    item.pdfOptions = normalizePdfOptions({
+      ...item.pdfOptions,
+      preferCssPageSize: target.value === 'true',
+    });
+    updateDirtyState();
+    return;
+  }
+  if (target.id === 'pdf-generate-document-outline') {
+    item.pdfOptions = normalizePdfOptions({
+      ...item.pdfOptions,
+      generateDocumentOutline: target.value === 'true',
+    });
     updateDirtyState();
     return;
   }
   if (target.id === 'image-jpeg-quality') {
-    item.imageOptions.jpegQuality = target.value === '' ? '' : Number(target.value);
+    item.imageOptions.jpegQuality = getConstrainedNumericInputValue(
+      target,
+      FIELD_NUMBER_CONSTRAINTS['image-jpeg-quality']
+    );
     updateDirtyState();
     return;
   }
@@ -1288,12 +1437,17 @@ function handleDetailInput(event) {
       } else if (field === 'endAt') {
         nextSchedule.endAt =
           event.type === 'input' ? String(target.value || '') : String(target.value || '').trim();
+      } else if (target.type === 'number') {
+        nextSchedule[field] = getConstrainedNumericInputValue(
+          target,
+          SCHEDULE_NUMBER_CONSTRAINTS[field] || {}
+        );
       } else {
         nextSchedule[field] = target.type === 'checkbox' ? target.checked : target.value;
       }
       item.schedules[scheduleIndex] = normalizeSchedule(
         nextSchedule,
-        nextSchedule.startAt || schedule.startAt
+        field === 'startAt' ? nextSchedule.startAt : nextSchedule.startAt || schedule.startAt
       );
       updateDirtyState();
       renderSidebar();
@@ -1324,9 +1478,7 @@ function handleDetailInput(event) {
         target.type === 'checkbox'
           ? target.checked
           : target.type === 'number'
-            ? target.value === ''
-              ? ''
-              : Number(target.value)
+            ? getConstrainedNumericInputValue(target, ACTION_NUMBER_CONSTRAINTS[field] || {})
             : field === 'dispatchInput' || field === 'dispatchChange'
               ? target.value === 'true'
               : target.value;

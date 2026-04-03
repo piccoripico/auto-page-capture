@@ -612,9 +612,11 @@ async function capturePdfViaDebugger(tabId, pdfOptions = {}) {
     const margin = PDF_MARGIN_MAP[pdfOptions.marginPreset] || PDF_MARGIN_MAP.default;
     const result = await chrome.debugger.sendCommand(target, 'Page.printToPDF', {
       printBackground: pdfOptions.printBackground !== false,
-      preferCSSPageSize: true,
-      displayHeaderFooter: false,
+      preferCSSPageSize: pdfOptions.preferCssPageSize !== false,
+      displayHeaderFooter: pdfOptions.displayHeaderFooter === true,
+      generateDocumentOutline: pdfOptions.generateDocumentOutline === true,
       landscape: pdfOptions.landscape === true,
+      scale: Math.max(0.5, Math.min(2, Number(pdfOptions.scalePercent ?? 100) / 100)),
       paperWidth: paper.width,
       paperHeight: paper.height,
       marginTop: margin.inches,

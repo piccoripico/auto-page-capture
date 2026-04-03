@@ -160,6 +160,24 @@ section {
   line-height: 1.4;
   word-break: break-word;
 }
+.history-main {
+  display: grid;
+  gap: 2px;
+}
+.history-title {
+  line-height: 1.35;
+}
+.history-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+.history-detail {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .item-actions {
   display: grid;
   gap: 8px;
