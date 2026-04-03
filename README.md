@@ -180,6 +180,13 @@ npm run package
 
 The archive is written to `dist/` and contains the extension files at the zip root, not an extra `src/` folder.
 
+## GitHub Actions
+
+- `CI` runs on pushes, pull requests, and manual dispatch. It checks formatting, lint, and the Playwright suite.
+- `Release` runs on `v*` tags and on manual dispatch. It builds the extension zip with `npm run package` and uploads it as an artifact.
+- When `Release` runs for a tag such as `v1.1.0`, it also publishes a GitHub Release and attaches the generated zip.
+- Manual `Release` runs can package any selected ref. Set `create_release` and `tag_name` if you also want a GitHub Release from the manual run.
+
 ## Testing
 
 Run the default automated Playwright suite:

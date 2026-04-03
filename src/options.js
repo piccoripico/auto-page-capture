@@ -478,7 +478,9 @@ function requiredMarkHtml(locale = currentLocale()) {
 }
 
 function baseLabelText(key, params = {}, locale = currentLocale()) {
-  return t(key, { ...params, required: '' }, locale).replace(/\s+/g, ' ').trim();
+  return t(key, { ...params, required: '' }, locale)
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function renderFieldLabelHtml(fieldKey, locale = currentLocale(), params = {}) {
@@ -550,7 +552,9 @@ function cloneTemplate(templateEl) {
 
 function populateSelectOptions(select, options, selectedValue, locale) {
   select.innerHTML = options
-    .map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
+    .map(
+      (option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`
+    )
     .join('');
   select.value = String(selectedValue);
   if (select.value !== String(selectedValue) && options[0]) {
@@ -660,9 +664,9 @@ function buildScheduleRow(schedule, index, locale) {
     schedule.scheduleMode,
     locale
   );
-  card.querySelector('[data-role="schedule-repeat-grid"]').append(
-    buildScheduleRecurrenceFields(schedule, index, locale)
-  );
+  card
+    .querySelector('[data-role="schedule-repeat-grid"]')
+    .append(buildScheduleRecurrenceFields(schedule, index, locale));
   return card;
 }
 
@@ -689,14 +693,18 @@ function buildActionFieldsNode(action, index, locale) {
       setFieldLabel(fragment, '[data-role="label-css-selector"]', 'cssSelector', locale);
       setFieldLabel(fragment, '[data-role="label-wait-ms"]', 'waitMs', locale);
       fragment.querySelector('[data-action-field="selector"]').value = action.selector;
-      fragment.querySelector('[data-action-field="waitAfterMs"]').value = String(action.waitAfterMs);
+      fragment.querySelector('[data-action-field="waitAfterMs"]').value = String(
+        action.waitAfterMs
+      );
       break;
     case 'clickXPath':
       fragment = cloneTemplate(actionClickXPathFieldsTemplate);
       setFieldLabel(fragment, '[data-role="label-xpath"]', 'xpath', locale);
       setFieldLabel(fragment, '[data-role="label-wait-ms"]', 'waitMs', locale);
       fragment.querySelector('[data-action-field="xpath"]').value = action.xpath;
-      fragment.querySelector('[data-action-field="waitAfterMs"]').value = String(action.waitAfterMs);
+      fragment.querySelector('[data-action-field="waitAfterMs"]').value = String(
+        action.waitAfterMs
+      );
       break;
     case 'setValue':
       fragment = cloneTemplate(actionSetValueFieldsTemplate);
@@ -802,7 +810,9 @@ function buildActionFieldsNode(action, index, locale) {
         action.operator === 'contains' ? 'contains' : 'equals',
         locale
       );
-      fragment.querySelector('[data-action-field="waitAfterMs"]').value = String(action.waitAfterMs);
+      fragment.querySelector('[data-action-field="waitAfterMs"]').value = String(
+        action.waitAfterMs
+      );
       break;
   }
 
@@ -863,12 +873,7 @@ function buildOutputSettingsNode(item, locale) {
     setFieldLabel(root, '[data-role="label-pdf-scale"]', 'pdfScale', locale);
     setFieldLabel(root, '[data-role="label-pdf-header-footer"]', 'pdfHeaderFooter', locale);
     setFieldLabel(root, '[data-role="label-pdf-css-page-size"]', 'pdfCssPageSize', locale);
-    setFieldLabel(
-      root,
-      '[data-role="label-pdf-document-outline"]',
-      'pdfDocumentOutline',
-      locale
-    );
+    setFieldLabel(root, '[data-role="label-pdf-document-outline"]', 'pdfDocumentOutline', locale);
     populateSelectOptions(
       root.querySelector('#pdf-landscape'),
       [
@@ -982,11 +987,7 @@ function renderDetail() {
   setText(
     fragment,
     '[data-role="item-number"]',
-    t(
-      'shared.itemName',
-      { index: state.items.findIndex((x) => x.id === item.id) + 1 },
-      locale
-    )
+    t('shared.itemName', { index: state.items.findIndex((x) => x.id === item.id) + 1 }, locale)
   );
   setFieldLabel(fragment, '[data-role="label-url"]', 'url', locale);
   setFieldLabel(fragment, '[data-role="label-save-format"]', 'saveFormat', locale);

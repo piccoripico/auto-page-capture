@@ -46,7 +46,9 @@ function appendTextNode(parent, tagName, text) {
 }
 
 function basenameFromPathLike(text) {
-  const normalized = String(text || '').trim().replace(/\\/g, '/');
+  const normalized = String(text || '')
+    .trim()
+    .replace(/\\/g, '/');
   if (!normalized) {
     return '';
   }

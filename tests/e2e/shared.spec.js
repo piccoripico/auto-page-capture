@@ -1,10 +1,7 @@
 import { expect, test } from './fixtures/extension.js';
 
 test.describe('shared logic', () => {
-  test('normalizes legacy action payloads and applies defaults', async ({
-    extensionId,
-    page,
-  }) => {
+  test('normalizes legacy action payloads and applies defaults', async ({ extensionId, page }) => {
     await page.goto(`chrome-extension://${extensionId}/options.html`);
 
     const result = await page.evaluate(async () => {
