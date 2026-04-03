@@ -40,13 +40,25 @@ export const PDF_PAPER_SIZE_OPTIONS = [
   { value: 'a3', labelKey: 'shared.paperSize.a3', width: 11.69, height: 16.54 },
   { value: 'a4', labelKey: 'shared.paperSize.a4', width: 8.27, height: 11.69 },
   { value: 'a5', labelKey: 'shared.paperSize.a5', width: 5.83, height: 8.27 },
+  { value: 'a6', labelKey: 'shared.paperSize.a6', width: 4.13, height: 5.83 },
+  { value: 'a7', labelKey: 'shared.paperSize.a7', width: 2.91, height: 4.13 },
+  { value: 'a8', labelKey: 'shared.paperSize.a8', width: 2.05, height: 2.91 },
+  { value: 'a9', labelKey: 'shared.paperSize.a9', width: 1.46, height: 2.05 },
+  { value: 'a10', labelKey: 'shared.paperSize.a10', width: 1.02, height: 1.46 },
+  { value: 'b0', labelKey: 'shared.paperSize.b0', width: 39.37, height: 55.67 },
   { value: 'b1', labelKey: 'shared.paperSize.b1', width: 27.83, height: 39.37 },
   { value: 'b2', labelKey: 'shared.paperSize.b2', width: 19.69, height: 27.83 },
   { value: 'b3', labelKey: 'shared.paperSize.b3', width: 13.9, height: 19.69 },
   { value: 'b4', labelKey: 'shared.paperSize.b4', width: 9.84, height: 13.9 },
   { value: 'b5', labelKey: 'shared.paperSize.b5', width: 6.93, height: 9.84 },
+  { value: 'b6', labelKey: 'shared.paperSize.b6', width: 4.92, height: 6.93 },
+  { value: 'b7', labelKey: 'shared.paperSize.b7', width: 3.46, height: 4.92 },
+  { value: 'b8', labelKey: 'shared.paperSize.b8', width: 2.44, height: 3.46 },
+  { value: 'b9', labelKey: 'shared.paperSize.b9', width: 1.73, height: 2.44 },
+  { value: 'b10', labelKey: 'shared.paperSize.b10', width: 1.22, height: 1.73 },
   { value: 'letter', labelKey: 'shared.paperSize.letter', width: 8.5, height: 11 },
   { value: 'legal', labelKey: 'shared.paperSize.legal', width: 8.5, height: 14 },
+  { value: 'executive', labelKey: 'shared.paperSize.executive', width: 7.25, height: 10.5 },
   { value: 'tabloid', labelKey: 'shared.paperSize.tabloid', width: 11, height: 17 },
 ];
 export const PDF_PAPER_SIZE_MAP = Object.fromEntries(
@@ -54,11 +66,17 @@ export const PDF_PAPER_SIZE_MAP = Object.fromEntries(
 );
 
 export const PDF_MARGIN_OPTIONS = [
-  { value: 'default', labelKey: 'shared.pdfMargin.default', inches: 0.4 },
-  { value: 'narrow', labelKey: 'shared.pdfMargin.narrow', inches: 0.2 },
   { value: 'none', labelKey: 'shared.pdfMargin.none', inches: 0 },
+  { value: 'narrow', labelKey: 'shared.pdfMargin.narrow', inches: 0.2 },
+  { value: 'default', labelKey: 'shared.pdfMargin.default', inches: 0.4 },
+  { value: 'wide', labelKey: 'shared.pdfMargin.wide', inches: 0.6 },
+  { value: 'extraWide', labelKey: 'shared.pdfMargin.extraWide', inches: 0.8 },
 ];
 export const PDF_MARGIN_MAP = Object.fromEntries(PDF_MARGIN_OPTIONS.map((x) => [x.value, x]));
+
+export const PDF_SCALE_PERCENT_OPTIONS = [
+  50, 60, 70, 80, 90, 95, 100, 105, 110, 115, 120, 125, 130, 140, 150, 160, 175, 200,
+];
 
 export const SCHEDULE_INTERVALS = [
   { value: 'once', labelKey: 'shared.interval.once', minutes: null },
@@ -122,11 +140,17 @@ export function saveFormatLabel(value, locale = detectBrowserLocale()) {
 export function normalizePdfOptions(raw = {}) {
   const paperSize = PDF_PAPER_SIZE_MAP[raw.paperSize] ? raw.paperSize : 'a4';
   const marginPreset = PDF_MARGIN_MAP[raw.marginPreset] ? raw.marginPreset : 'default';
+  const numericScale = Number(raw.scalePercent ?? raw.scale);
+  const scalePercent = PDF_SCALE_PERCENT_OPTIONS.includes(numericScale) ? numericScale : 100;
   return {
     landscape: raw.landscape === true,
     printBackground: raw.printBackground !== false,
+    displayHeaderFooter: raw.displayHeaderFooter === true,
+    preferCssPageSize: raw.preferCssPageSize !== false,
+    generateDocumentOutline: raw.generateDocumentOutline === true,
     paperSize,
     marginPreset,
+    scalePercent,
   };
 }
 
@@ -201,6 +225,12 @@ export function normalizeTime(value) {
 export function normalizeDateTimeLocal(value) {
   const text = String(value || '').trim();
   if (!text) {
+    return '';
+  }
+  const hasDateAndTime =
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(text) ||
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/.test(text);
+  if (!hasDateAndTime) {
     return '';
   }
   const d = new Date(text);
@@ -502,7 +532,7 @@ export function normalizeAction(raw = {}) {
 }
 
 function migrateLegacySchedule(raw = {}) {
-  if (raw.startAt) {
+  if (Object.prototype.hasOwnProperty.call(raw, 'startAt')) {
     return raw;
   }
   const legacyTime = normalizeTime(raw.startTime || raw.scheduleTime || '15:00');
@@ -1058,14 +1088,14 @@ export function validateItem(item, locale = detectBrowserLocale()) {
     errors.push(t('validation.scheduleRequired', {}, locale));
   }
   const first = schedules[0];
-  if (!first || !String(first.startAt || '').trim()) {
+  if (!first || !normalizeDateTimeLocal(first.startAt || '')) {
     errors.push(t('validation.startAtRequired', {}, locale));
   }
   if (!first || !String(first.scheduleMode || '').trim()) {
     errors.push(t('validation.scheduleModeRequired', { index: 1 }, locale));
   }
   schedules.forEach((schedule, index) => {
-    if (!String(schedule.startAt || '').trim()) {
+    if (!normalizeDateTimeLocal(schedule.startAt || '')) {
       errors.push(t('validation.scheduleStartAtRequired', { index: index + 1 }, locale));
     }
     if (!String(schedule.scheduleMode || '').trim()) {

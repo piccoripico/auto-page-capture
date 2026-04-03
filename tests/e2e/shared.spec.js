@@ -39,6 +39,16 @@ test.describe('shared logic', () => {
           endAt: '',
           enabled: true,
         }),
+        pdfOptions: shared.normalizePdfOptions({
+          paperSize: 'b0',
+          marginPreset: 'extraWide',
+          scalePercent: 125,
+          displayHeaderFooter: true,
+          preferCssPageSize: false,
+          generateDocumentOutline: true,
+          printBackground: false,
+          landscape: true,
+        }),
       };
     });
 
@@ -67,6 +77,16 @@ test.describe('shared logic', () => {
       scheduleMode: 'monthly',
       monthlyDay: 31,
       intervalKey: 'monthly',
+    });
+    expect(result.pdfOptions).toMatchObject({
+      paperSize: 'b0',
+      marginPreset: 'extraWide',
+      scalePercent: 125,
+      displayHeaderFooter: true,
+      preferCssPageSize: false,
+      generateDocumentOutline: true,
+      printBackground: false,
+      landscape: true,
     });
   });
 
@@ -109,6 +129,24 @@ test.describe('shared logic', () => {
           },
           'en'
         ),
+        invalidStartAt: shared.validateItem(
+          {
+            url: 'https://example.com/report',
+            saveFormat: 'html',
+            schedules: [
+              {
+                startAt: '2026-03-02',
+                scheduleMode: 'interval',
+                intervalValue: 1,
+                intervalUnit: 'day',
+                endAt: '',
+                enabled: true,
+              },
+            ],
+            actions: [],
+          },
+          'en'
+        ),
       };
     });
 
@@ -131,6 +169,10 @@ test.describe('shared logic', () => {
         'Schedule 1: the active period is invalid.',
         'Step 1: enter an XPath (*).',
       ])
+    );
+    expect(result.invalidStartAt.ok).toBe(false);
+    expect(result.invalidStartAt.errors).toEqual(
+      expect.arrayContaining(['Enter both the date and time for start date/time (*).'])
     );
   });
 });

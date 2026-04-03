@@ -199,6 +199,10 @@
           <div class="group-head">
             <div><h3 data-i18n="groups.options">Options</h3></div>
           </div>
+          <div class="field output-path-preview-field">
+            <span data-i18n="fields.outputPathPreview">Saved folder and filename</span>
+            <code id="output-path-preview" class="path-preview"></code>
+          </div>
           <div class="grid-2 compact-grid">
             <label class="field">
               <span data-role="label-download-folder"></span>
@@ -217,13 +221,9 @@
               />
             </label>
           </div>
-          <div class="field" style="margin-top: 12px">
-            <span data-i18n="fields.outputPathPreview">Saved folder and filename</span>
-            <code id="output-path-preview" class="path-preview"></code>
-          </div>
           <div class="grid-4 compact-grid" style="margin-top: 12px">
             <label class="field">
-              <span data-i18n="fields.waitBefore">Wait before actions (ms)</span>
+              <span data-role="label-wait-before"></span>
               <input
                 id="wait-before"
                 type="number"
@@ -234,7 +234,7 @@
               />
             </label>
             <label class="field">
-              <span data-i18n="fields.waitAfter">Wait before saving (ms)</span>
+              <span data-role="label-wait-after"></span>
               <input
                 id="wait-after"
                 type="number"
@@ -270,7 +270,7 @@
         <section class="group-card optional">
           <div class="group-head">
             <div>
-              <h3 data-i18n="groups.actions">Actions to run before saving</h3>
+              <h3 data-i18n="groups.actions">Actions (use when you want to operate the page before saving)</h3>
               <p data-i18n="groups.actionsHelp">Actions run from top to bottom.</p>
             </div>
             <button id="add-action" data-i18n="groups.addAction">+ Add action</button>
@@ -299,14 +299,20 @@
             <div class="schedule-title">
               <div class="badge" data-role="schedule-title"></div>
             </div>
-            <button
-              type="button"
-              data-action="remove-schedule"
-              class="ghost danger"
-              data-i18n="common.delete"
-            >
-              Delete
-            </button>
+            <div class="schedule-head-side">
+              <div class="schedule-next-run">
+                <span data-i18n="schedule.nextRun">Next run</span>
+                <strong data-role="schedule-next-run-value"></strong>
+              </div>
+              <button
+                type="button"
+                data-action="remove-schedule"
+                class="ghost danger"
+                data-i18n="common.delete"
+              >
+                Delete
+              </button>
+            </div>
           </div>
           <div class="schedule-layout">
             <div class="schedule-time-grid">
@@ -368,7 +374,7 @@
         <div class="group-head">
           <div><h3 data-i18n="groups.output">Output settings</h3></div>
         </div>
-        <div class="grid-2 compact-grid">
+        <div class="grid-4 compact-grid pdf-settings-grid">
           <label class="field">
             <span data-role="label-pdf-orientation"></span>
             <select id="pdf-landscape"></select>
@@ -385,6 +391,22 @@
             <span data-role="label-pdf-background"></span>
             <select id="pdf-print-background"></select>
           </label>
+          <label class="field">
+            <span data-role="label-pdf-scale"></span>
+            <select id="pdf-scale-percent"></select>
+          </label>
+          <label class="field">
+            <span data-role="label-pdf-header-footer"></span>
+            <select id="pdf-display-header-footer"></select>
+          </label>
+          <label class="field">
+            <span data-role="label-pdf-css-page-size"></span>
+            <select id="pdf-prefer-css-page-size"></select>
+          </label>
+          <label class="field">
+            <span data-role="label-pdf-document-outline"></span>
+            <select id="pdf-generate-document-outline"></select>
+          </label>
         </div>
       </div>
     </template>
@@ -397,7 +419,15 @@
         <div class="grid-2 compact-grid">
           <label class="field">
             <span data-role="label-jpeg-quality"></span>
-            <input id="image-jpeg-quality" type="number" min="1" max="100" step="1" placeholder="90" />
+            <input
+              id="image-jpeg-quality"
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+              data-i18n-placeholder="fields.jpegQualityPlaceholder"
+              placeholder="Leave blank to use 90"
+            />
           </label>
         </div>
       </div>
@@ -412,6 +442,7 @@
         <span data-role="label-wait-ms"></span>
         <input
           type="number"
+          min="0"
           data-action-field="waitAfterMs"
           data-i18n-placeholder="fields.msPlaceholder1000"
           placeholder="Defaults to 1000 when blank"
@@ -428,6 +459,7 @@
         <span data-role="label-wait-ms"></span>
         <input
           type="number"
+          min="0"
           data-action-field="waitAfterMs"
           data-i18n-placeholder="fields.msPlaceholder1000"
           placeholder="Defaults to 1000 when blank"
@@ -467,6 +499,7 @@
         <span data-role="label-timeout-ms"></span>
         <input
           type="number"
+          min="100"
           data-action-field="timeoutMs"
           data-i18n-placeholder="fields.msPlaceholder10000"
           placeholder="Defaults to 10000 when blank"
@@ -487,6 +520,7 @@
         <span data-role="label-timeout-ms"></span>
         <input
           type="number"
+          min="100"
           data-action-field="timeoutMs"
           data-i18n-placeholder="fields.msPlaceholder10000"
           placeholder="Defaults to 10000 when blank"
@@ -519,6 +553,7 @@
         <span data-role="label-timeout-ms"></span>
         <input
           type="number"
+          min="100"
           data-action-field="timeoutMs"
           data-i18n-placeholder="fields.msPlaceholder10000"
           placeholder="Defaults to 10000 when blank"
@@ -531,6 +566,7 @@
         <span data-role="label-fixed-wait-ms"></span>
         <input
           type="number"
+          min="0"
           data-action-field="ms"
           data-i18n-placeholder="fields.msPlaceholder1000"
           placeholder="Defaults to 1000 when blank"
@@ -559,6 +595,7 @@
         <span data-role="label-wait-after-click"></span>
         <input
           type="number"
+          min="0"
           data-action-field="waitAfterMs"
           data-i18n-placeholder="fields.msPlaceholder1000"
           placeholder="Defaults to 1000 when blank"

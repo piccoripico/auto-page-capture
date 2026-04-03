@@ -29,6 +29,40 @@ test.describe('popup page', () => {
     );
   });
 
+  test('shows popup history in a compact format', async ({
+    baseURL,
+    extensionId,
+    page,
+    resetExtensionState,
+  }) => {
+    const seed = buildSeedState(baseURL);
+    seed.recentHistory = [
+      {
+        id: 'hist_compact',
+        itemId: 'item_primary',
+        itemName: 'UR 特別募集（大阪・兵庫）',
+        status: 'saved',
+        trigger: 'manual',
+        at: '2030-01-02T08:31:00.000Z',
+        filename: 'C:\\Users\\kitad\\Desktop\\特別募集住宅｜UR賃貸住宅_20260403_174713.pdf',
+        message:
+          'OK clickText: result matched=true / OK waitForAttribute: aria-expanded equals true / some very long raw execution trace that should stay out of the popup view',
+      },
+    ];
+
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/popup.html?mode=window`);
+    await resetExtensionState(seed);
+    await page.locator('#refresh').click();
+
+    const firstRow = page.locator('#history .history-row').first();
+    await expect(firstRow).toContainText('UR 特別募集（大阪・兵庫）');
+    await expect(firstRow).toContainText('特別募集住宅｜UR賃貸住宅_20260403_174713.pdf');
+    await expect(firstRow).not.toContainText('C:\\Users\\kitad\\Desktop');
+    await expect(firstRow).not.toContainText('OK clickText');
+  });
+
   test('clears recent history from the popup', async ({
     baseURL,
     extensionId,
