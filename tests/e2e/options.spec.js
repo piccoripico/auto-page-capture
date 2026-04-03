@@ -5,6 +5,10 @@ import {
 } from './helpers/sample-config.js';
 import { expect, test } from './fixtures/extension.js';
 
+function actionCard(page, index) {
+  return page.locator('#action-list .action-card').nth(index);
+}
+
 test.describe('options page', () => {
   test('persists edited item details after save', async ({
     baseURL,
@@ -332,6 +336,176 @@ test.describe('options page', () => {
     });
 
     expect(monthlyComputation.nextLocal).toBe('2026-02-28T08:15');
+  });
+
+  test('persists action settings for all supported action types after save', async ({
+    baseURL,
+    extensionId,
+    page,
+    readExtensionState,
+    resetExtensionState,
+  }) => {
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/options.html`);
+    await resetExtensionState(buildSeedState(baseURL));
+    await page.reload();
+
+    await expect(page.locator('#action-list .small-text')).toContainText('No actions configured.');
+
+    for (let index = 0; index < 8; index += 1) {
+      await page.locator('#add-action').click();
+    }
+
+    await expect(page.locator('#action-list .action-card')).toHaveCount(8);
+
+    await actionCard(page, 0).locator('[data-field="type"]').selectOption('clickText');
+    await actionCard(page, 0).locator('[data-action-field="selector"]').fill('.menu button');
+    await actionCard(page, 0).locator('[data-action-field="textSourceSelector"]').fill(
+      '.menu button .label'
+    );
+    await actionCard(page, 0).locator('[data-action-field="text"]').fill('Run now');
+    await actionCard(page, 0).locator('[data-action-field="operator"]').selectOption('contains');
+    await actionCard(page, 0).locator('[data-action-field="waitAfterMs"]').fill('1200');
+
+    await actionCard(page, 1).locator('[data-field="type"]').selectOption('clickSelector');
+    await actionCard(page, 1).locator('[data-action-field="selector"]').fill('#submit-button');
+    await actionCard(page, 1).locator('[data-action-field="waitAfterMs"]').fill('900');
+
+    await actionCard(page, 2).locator('[data-field="type"]').selectOption('clickXPath');
+    await actionCard(page, 2)
+      .locator('[data-action-field="xpath"]')
+      .fill('//button[@data-role="download"]');
+    await actionCard(page, 2).locator('[data-action-field="waitAfterMs"]').fill('700');
+
+    await actionCard(page, 3).locator('[data-field="type"]').selectOption('setValue');
+    await actionCard(page, 3).locator('[data-action-field="selector"]').fill('#edition-input');
+    await actionCard(page, 3).locator('[data-action-field="value"]').fill('Osaka edition');
+    await actionCard(page, 3).locator('[data-action-field="dispatchInput"]').selectOption('false');
+    await actionCard(page, 3).locator('[data-action-field="dispatchChange"]').selectOption('true');
+
+    await actionCard(page, 4).locator('[data-field="type"]').selectOption('waitForExists');
+    await actionCard(page, 4).locator('[data-action-field="selectorType"]').selectOption('xpath');
+    await actionCard(page, 4)
+      .locator('[data-action-field="selector"]')
+      .fill('//div[@id="status-text"]');
+    await actionCard(page, 4).locator('[data-action-field="timeoutMs"]').fill('2200');
+
+    await actionCard(page, 5).locator('[data-field="type"]').selectOption('waitForNotExists');
+    await actionCard(page, 5).locator('[data-action-field="selectorType"]').selectOption('css');
+    await actionCard(page, 5)
+      .locator('[data-action-field="selector"]')
+      .fill('.loading-indicator');
+    await actionCard(page, 5).locator('[data-action-field="timeoutMs"]').fill('3300');
+
+    await actionCard(page, 6).locator('[data-field="type"]').selectOption('waitForAttribute');
+    await actionCard(page, 6).locator('[data-action-field="selectorType"]').selectOption('css');
+    await actionCard(page, 6).locator('[data-action-field="selector"]').fill('#status-text');
+    await actionCard(page, 6).locator('[data-action-field="attributeName"]').fill('data-ready');
+    await actionCard(page, 6).locator('[data-action-field="expectedValue"]').fill('true');
+    await actionCard(page, 6).locator('[data-action-field="operator"]').selectOption('equals');
+    await actionCard(page, 6).locator('[data-action-field="timeoutMs"]').fill('4400');
+
+    await actionCard(page, 7).locator('[data-field="type"]').selectOption('wait');
+    await actionCard(page, 7).locator('[data-action-field="ms"]').fill('1500');
+
+    await expect(page.locator('#save-all')).toBeEnabled();
+    await page.locator('#save-all').click();
+    await expect(page.locator('#save-all')).toBeDisabled();
+
+    await page.reload();
+
+    await expect(page.locator('#action-list .action-card')).toHaveCount(8);
+    await expect(actionCard(page, 0).locator('[data-field="type"]')).toHaveValue('clickText');
+    await expect(actionCard(page, 0).locator('[data-action-field="text"]')).toHaveValue('Run now');
+    await expect(actionCard(page, 3).locator('[data-field="type"]')).toHaveValue('setValue');
+    await expect(actionCard(page, 3).locator('[data-action-field="value"]')).toHaveValue(
+      'Osaka edition'
+    );
+    await expect(actionCard(page, 7).locator('[data-field="type"]')).toHaveValue('wait');
+    await expect(actionCard(page, 7).locator('[data-action-field="ms"]')).toHaveValue('1500');
+
+    const stored = await readExtensionState(['items']);
+    expect(stored.items[0].actions).toMatchObject([
+      {
+        type: 'clickText',
+        selector: '.menu button',
+        textSourceSelector: '.menu button .label',
+        text: 'Run now',
+        operator: 'contains',
+        waitAfterMs: 1200,
+      },
+      {
+        type: 'clickSelector',
+        selector: '#submit-button',
+        waitAfterMs: 900,
+      },
+      {
+        type: 'clickXPath',
+        xpath: '//button[@data-role="download"]',
+        waitAfterMs: 700,
+      },
+      {
+        type: 'setValue',
+        selector: '#edition-input',
+        value: 'Osaka edition',
+        dispatchInput: false,
+        dispatchChange: true,
+        waitAfterMs: 1000,
+      },
+      {
+        type: 'waitForExists',
+        selectorType: 'xpath',
+        selector: '//div[@id="status-text"]',
+        timeoutMs: 2200,
+      },
+      {
+        type: 'waitForNotExists',
+        selectorType: 'css',
+        selector: '.loading-indicator',
+        timeoutMs: 3300,
+      },
+      {
+        type: 'waitForAttribute',
+        selectorType: 'css',
+        selector: '#status-text',
+        attributeName: 'data-ready',
+        expectedValue: 'true',
+        operator: 'equals',
+        timeoutMs: 4400,
+      },
+      {
+        type: 'wait',
+        ms: 1500,
+      },
+    ]);
+  });
+
+  test('blocks saving while action validation errors remain and recovers after fixing them', async ({
+    baseURL,
+    extensionId,
+    page,
+    resetExtensionState,
+  }) => {
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/options.html`);
+    await resetExtensionState(buildSeedState(baseURL));
+    await page.reload();
+
+    await page.locator('#add-action').click();
+
+    await expect(page.locator('#save-all')).toBeDisabled();
+    await expect(page.locator('#detail-validation')).toContainText('Step 1: enter text (*)');
+
+    await actionCard(page, 0).locator('[data-action-field="text"]').fill('Publish report');
+
+    await expect(page.locator('#save-all')).toBeEnabled();
+
+    await page.locator('#save-all').click();
+    await expect(page.locator('#save-all')).toBeDisabled();
+    await page.reload();
+    await expect(page.locator('#detail-validation')).toBeHidden();
   });
 
   test('accepts file URLs and shows file access guidance', async ({
