@@ -1,0 +1,142 @@
+{
+  "format": "auto-page-capture-items",
+  "version": 1,
+  "exportedAt": "2026-04-03T09:40:59.518Z",
+  "items": [
+    {
+      "id": "item_2501c099-5d2a-4ce9-bb00-fcd6ea192695",
+      "name": "Homepage PDF sample",
+      "description": "Sample item that saves a homepage as PDF every day",
+      "enabled": false,
+      "url": "https://www.wikipedia.org/",
+      "saveFormat": "pdf",
+      "schedules": [
+        {
+          "id": "sch_72001e10-e08e-4d98-806c-ddbcd7b7ee69",
+          "startAt": "2026-04-03T21:00",
+          "scheduleMode": "interval",
+          "intervalUnit": "day",
+          "intervalValue": 1,
+          "monthlyDay": 3,
+          "endAt": "",
+          "enabled": true,
+          "intervalKey": "day1"
+        }
+      ],
+      "downloadFolder": "",
+      "filenamePrefix": "",
+      "closeTabAfterSave": true,
+      "waitBeforeActionsMs": 1000,
+      "waitAfterActionsMs": 1000,
+      "pdfOptions": {
+        "landscape": false,
+        "printBackground": true,
+        "displayHeaderFooter": false,
+        "preferCssPageSize": true,
+        "generateDocumentOutline": false,
+        "paperSize": "a4",
+        "marginPreset": "default",
+        "scalePercent": 100
+      },
+      "imageOptions": {
+        "jpegQuality": 90
+      },
+      "authOptions": {
+        "loginFailureUrlPattern": "",
+        "requiredSelectorType": "css",
+        "requiredSelector": ""
+      },
+      "actions": []
+    },
+    {
+      "id": "item_f063a193-2430-435e-b6b2-68b484b1d924",
+      "name": "Full-page screenshot sample",
+      "description": "Sample item that saves an entire page as a PNG image",
+      "enabled": false,
+      "url": "https://www.billboard.com/charts/",
+      "saveFormat": "png",
+      "schedules": [
+        {
+          "id": "sch_0d949cfd-0ea7-4c25-8c70-7df07f183cc2",
+          "startAt": "2026-04-03T21:15",
+          "scheduleMode": "interval",
+          "intervalUnit": "day",
+          "intervalValue": 1,
+          "monthlyDay": 3,
+          "endAt": "",
+          "enabled": true,
+          "intervalKey": "day1"
+        }
+      ],
+      "downloadFolder": "",
+      "filenamePrefix": "",
+      "closeTabAfterSave": true,
+      "waitBeforeActionsMs": 1000,
+      "waitAfterActionsMs": 1000,
+      "pdfOptions": {
+        "landscape": false,
+        "printBackground": true,
+        "displayHeaderFooter": false,
+        "preferCssPageSize": true,
+        "generateDocumentOutline": false,
+        "paperSize": "a4",
+        "marginPreset": "default",
+        "scalePercent": 100
+      },
+      "imageOptions": {
+        "jpegQuality": 90
+      },
+      "authOptions": {
+        "loginFailureUrlPattern": "",
+        "requiredSelectorType": "css",
+        "requiredSelector": ""
+      },
+      "actions": []
+    },
+    {
+      "id": "item_e3bdab0a-de89-4cf9-ad9d-d9d0093a9488",
+      "name": "Single-file web archive sample",
+      "description": "Sample item that saves a page as a single MHTML file",
+      "enabled": false,
+      "url": "https://news.ycombinator.com/",
+      "saveFormat": "mhtml",
+      "schedules": [
+        {
+          "id": "sch_683da2e9-83d4-4443-a689-d4b924007966",
+          "startAt": "2026-04-03T21:30",
+          "scheduleMode": "interval",
+          "intervalUnit": "day",
+          "intervalValue": 1,
+          "monthlyDay": 3,
+          "endAt": "",
+          "enabled": true,
+          "intervalKey": "day1"
+        }
+      ],
+      "downloadFolder": "",
+      "filenamePrefix": "",
+      "closeTabAfterSave": true,
+      "waitBeforeActionsMs": 1000,
+      "waitAfterActionsMs": 1000,
+      "pdfOptions": {
+        "landscape": false,
+        "printBackground": true,
+        "displayHeaderFooter": false,
+        "preferCssPageSize": true,
+        "generateDocumentOutline": false,
+        "paperSize": "a4",
+        "marginPreset": "default",
+        "scalePercent": 100
+      },
+      "imageOptions": {
+        "jpegQuality": 90
+      },
+      "authOptions": {
+        "loginFailureUrlPattern": "",
+        "requiredSelectorType": "css",
+        "requiredSelector": ""
+      },
+      "actions": []
+    }
+  ]
+}

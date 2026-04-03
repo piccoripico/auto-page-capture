@@ -2,7 +2,7 @@
 
 Auto Page Capture is a Manifest V3 browser extension for Microsoft Edge and Google Chrome.
 
-It opens a target page on a schedule, optionally performs pre-save actions, and saves the result to your local downloads folder as MHTML, HTML, PDF, or a full-page image.
+It opens a target page on a schedule, optionally performs actions before saving, and stores the result in the local downloads folder as MHTML, HTML, PDF, or a full-page image.
 
 ## Screenshots
 
@@ -10,35 +10,36 @@ It opens a target page on a schedule, optionally performs pre-save actions, and 
 | --------------------------------------------- | -------------------------------------------------- |
 | ![Popup screen](docs/images/popup-screen.png) | ![Settings screen](docs/images/options-screen.png) |
 
-## Why This Extension Exists
+## What It Does
 
-Many pages are only useful after they finish loading, after a button is clicked, or after a small interaction updates the page.
+This extension is designed for pages that are only useful after they finish loading or after a small interaction changes the page state.
 
-This extension is built for that workflow:
+Typical examples include reports, dashboards, charts, news pages, and pages that need a click, a wait, or a small form input before they are saved.
 
-- open a page automatically
-- wait for the right state
-- click or fill what is needed
-- save the final result in a format you can keep locally
+## Target URLs
 
-## Features
+The main target pages are:
+
+- `http://...`
+- `https://...`
+
+Local files can also be used with:
+
+- `file://...`
+
+`file://` capture requires the browser setting `Allow access to file URLs` for this extension.
+
+## Main Features
 
 - Multiple capture items with independent schedules
-- Flexible schedules:
-  - run once
-  - every N minutes / hours / days / weeks
-  - monthly on a chosen day
-- Local file URL support:
-  - `file://` targets can be registered
-  - requires the browser's `Allow access to file URLs` setting for this extension
 - Manual run from the popup
-- Automatic scheduled capture with `chrome.alarms`
-- Pre-save actions such as:
+- Scheduled capture with `chrome.alarms`
+- Optional pre-save actions such as:
   - wait
   - click by visible text
   - click by CSS selector
   - click by XPath
-  - set an input value
+  - set a form value
   - wait for an element or attribute state
 - Save formats:
   - `MHTML`
@@ -47,33 +48,49 @@ This extension is built for that workflow:
   - `PNG`
   - `JPEG`
   - `WebP`
-- Full logs in the settings page
 - Recent history in the popup
+- Detailed logs in the settings page
 - Log export as JSON or CSV
 - Per-site permission grant and revoke from the settings page
 - UI language switching
 
+## Scheduling
+
+Each item can use one or more schedules.
+
+Supported schedule styles:
+
+- run once
+- every N minutes / hours / days / weeks
+- monthly on a chosen day
+
+Scheduled captures run only while the browser is running and the extension is available.
+
+If the browser is fully closed at a scheduled time, that run is skipped. When the browser starts again, the extension resumes from the next upcoming scheduled time instead of replaying missed runs.
+
 ## Save Formats
 
 - `MHTML`: single-file web archive
-- `HTML`: DOM snapshot of the current page state
+- `HTML`: snapshot of the current DOM state
 - `PDF`: rendered through the browser print pipeline
 - `PNG / JPEG / WebP`: full-page screenshot captured through the browser debugger API
-- PDF output settings per item:
-  - page orientation
-  - paper size
-  - margin preset
-  - background graphics on/off
-- JPEG output settings per item:
-  - quality (1-100)
 
-## Privacy
+Per-item output settings are available for supported formats.
 
-This extension saves captured pages to local downloads only.
+PDF settings include:
 
-- No external server upload
-- No cloud sync
-- No built-in remote analytics
+- page orientation
+- paper size
+- margins
+- scale
+- background graphics
+- header / footer display
+- CSS page-size preference
+- document outline
+
+JPEG settings include:
+
+- quality (1-100)
 
 ## Permissions
 
@@ -87,7 +104,18 @@ The extension uses these permissions for the following reasons:
 - `pageCapture`: create MHTML captures
 - `debugger`: create PDF and full-page image captures
 - `optional_host_permissions`: request site access only for target origins you register
-- `file://` URLs also require the extension details setting `Allow access to file URLs`
+
+For normal website capture, site access is requested per target `http://` / `https://` origin.
+
+For `file://` capture, the browser's extension details page must allow access to file URLs.
+
+## Privacy
+
+Captured pages are saved to the local downloads folder only.
+
+- No external server upload
+- No cloud sync
+- No built-in remote analytics
 
 ## Typical Flow
 
@@ -95,16 +123,10 @@ The extension uses these permissions for the following reasons:
 2. Set the target URL
 3. Choose a save format
 4. Add one or more schedules
-5. Add optional pre-save actions
+5. Add optional pre-save actions if needed
 6. Grant site access for the target origin
 7. Save the configuration
 8. Run it manually from the popup or let the schedule trigger it
-
-## Scheduling Notes
-
-Scheduled captures run only while the browser is running and the extension is available.
-
-If the browser is fully closed at a scheduled time, that run is skipped. When the browser starts again, the extension resumes from the next upcoming scheduled time instead of replaying missed runs.
 
 ## Load Unpacked
 
@@ -186,7 +208,7 @@ npm run test:e2e:manual
 
 If PowerShell blocks `npm`, use `npm.cmd` instead.
 
-The default automated suite covers settings editing, sidebar live updates, popup rendering, recent-history clearing, alarm synchronization, and file-URL guidance.
+The default automated suite covers settings editing, scheduling, popup rendering, recent-history display, permission guidance, and compact popup history.
 
 The manual smoke test exists because optional host-permission grants require a real browser confirmation. It verifies the successful flow and checks downloads across `HTML`, `MHTML`, `PDF`, `PNG`, `JPEG`, and `WebP`.
 

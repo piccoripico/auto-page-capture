@@ -23,35 +23,35 @@ Use this as the manifest short description / summary line.
 
 ### 1.1 English (`en`)
 
-Automate page actions on a schedule and save the result as MHTML, HTML, PDF, or full-page screenshots.
+Automate actions on `http://` and `https://` pages on a schedule and save the result as MHTML, HTML, PDF, or full-page screenshots.
 
 ### 1.2 Japanese (`ja`)
 
-ページ操作を定期実行し、結果を MHTML / HTML / PDF / 全画面スクリーンショットとして保存します。
+`http://` と `https://` のページに対して操作を定期実行し、結果を MHTML / HTML / PDF / 全画面スクリーンショットとして保存します。
 
 ### 1.3 Simplified Chinese (`zh-CN`)
 
-按计划自动执行页面操作，并将结果保存为 MHTML、HTML、PDF 或整页截图。
+按计划自动执行 `http://` 和 `https://` 页面上的操作，并将结果保存为 MHTML、HTML、PDF 或整页截图。
 
 ### 1.4 Traditional Chinese (`zh-TW`)
 
-依排程自動執行頁面操作，並將結果儲存為 MHTML、HTML、PDF 或整頁截圖。
+依排程自動執行 `http://` 與 `https://` 頁面上的操作，並將結果儲存為 MHTML、HTML、PDF 或整頁截圖。
 
 ### 1.5 Korean (`ko`)
 
-예약된 일정에 따라 페이지 작업을 자동 실행하고 결과를 MHTML, HTML, PDF 또는 전체 페이지 스크린샷으로 저장합니다.
+`http://` 및 `https://` 페이지에서 예약된 일정에 따라 작업을 자동 실행하고 결과를 MHTML, HTML, PDF 또는 전체 페이지 스크린샷으로 저장합니다.
 
 ### 1.6 Spanish (`es`)
 
-Automatiza acciones en páginas web según una programación y guarda el resultado como MHTML, HTML, PDF o capturas de página completa.
+Automatiza acciones en páginas `http://` y `https://` según una programación y guarda el resultado como MHTML, HTML, PDF o capturas de página completa.
 
 ### 1.7 French (`fr`)
 
-Automatisez des actions sur des pages selon un planning et enregistrez le résultat au format MHTML, HTML, PDF ou capture pleine page.
+Automatisez des actions sur des pages `http://` et `https://` selon un planning et enregistrez le résultat au format MHTML, HTML, PDF ou capture pleine page.
 
 ### 1.8 German (`de`)
 
-Automatisieren Sie Seitenaktionen nach Zeitplan und speichern Sie das Ergebnis als MHTML, HTML, PDF oder Ganzseiten-Screenshot.
+Automatisieren Sie Aktionen auf `http://`- und `https://`-Seiten nach Zeitplan und speichern Sie das Ergebnis als MHTML, HTML, PDF oder Ganzseiten-Screenshot.
 
 ## 2. Detailed description
 
