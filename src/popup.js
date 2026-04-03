@@ -61,6 +61,10 @@ function compactHistoryMessage(message, maxLength = 120) {
   if (!normalized) {
     return '';
   }
+  const sentenceMatch = normalized.match(/^(.+?[.!?。！？])(?:\s|$)/);
+  if (sentenceMatch?.[1]) {
+    return sentenceMatch[1];
+  }
   return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 3)}...` : normalized;
 }
 

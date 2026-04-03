@@ -63,6 +63,40 @@ test.describe('popup page', () => {
     await expect(firstRow).not.toContainText('OK clickText');
   });
 
+  test('shows failed history entries as a short single-line summary when no filename exists', async ({
+    baseURL,
+    extensionId,
+    page,
+    resetExtensionState,
+  }) => {
+    const seed = buildSeedState(baseURL);
+    seed.recentHistory = [
+      {
+        id: 'hist_failed_compact',
+        itemId: 'item_primary',
+        itemName: 'Interactive capture target',
+        status: 'error',
+        trigger: 'manual',
+        at: '2030-01-02T08:31:00.000Z',
+        filename: '',
+        message:
+          'Site access is not granted for this origin. OK clickText matched=true. OK waitForAttribute aria-expanded=true. Raw trace step=4 selector=.js-tokubetsu-tdfk-name ...',
+      },
+    ];
+
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/popup.html?mode=window`);
+    await resetExtensionState(seed);
+    await page.locator('#refresh').click();
+
+    const firstRow = page.locator('#history .history-row').first();
+    await expect(firstRow).toContainText('Interactive capture target');
+    await expect(firstRow).toContainText('Failed');
+    await expect(firstRow).toContainText('Site access is not granted for this origin.');
+    await expect(firstRow).not.toContainText('OK clickText matched=true');
+  });
+
   test('clears recent history from the popup', async ({
     baseURL,
     extensionId,
