@@ -15,17 +15,17 @@
         <div class="field slim language-field">
           <select
             id="ui-language"
-            aria-label="表示言語"
+            aria-label="Display language"
             data-i18n-title="settings.language.ariaLabel"
             data-i18n-aria-label="settings.language.ariaLabel"
           ></select>
         </div>
-        <button id="export-items-json" data-i18n="header.exportItems">アイテム一覧出力</button>
+        <button id="export-items-json" data-i18n="header.exportItems">Export items</button>
         <button id="import-items-json-replace" data-i18n="header.importItemsReplace">
-          アイテム一覧取込（上書き）
+          Import items (replace)
         </button>
         <button id="import-items-json-add" data-i18n="header.importItemsAdd">
-          アイテム一覧取込（追加）
+          Import items (add)
         </button>
         <input id="import-items-file" type="file" accept="application/json,.json" hidden />
       </div>
@@ -37,30 +37,28 @@
           <section class="sidebar-section">
             <div class="sidebar-head">
               <div>
-                <h2 data-i18n="sidebar.items">アイテム一覧</h2>
+                <h2 data-i18n="sidebar.items">Items</h2>
               </div>
-              <button id="add-item" class="primary" data-i18n="sidebar.addItem">
-                ＋ アイテム追加
-              </button>
+              <button id="add-item" class="primary" data-i18n="sidebar.addItem">+ Add item</button>
             </div>
             <div class="sidebar-toolbar">
               <input
                 id="search-input"
                 type="search"
-                aria-label="名前・説明・URLで検索"
+                aria-label="Filter by name, description, or URL"
                 data-i18n-aria-label="sidebar.searchPlaceholder"
                 data-i18n-placeholder="sidebar.searchPlaceholder"
-                placeholder="名前・説明・URLで検索"
+                placeholder="Filter by name, description, or URL"
               />
               <div class="chips">
                 <button data-filter="all" class="chip active" data-i18n="sidebar.filter.all">
-                  すべて
+                  All
                 </button>
                 <button data-filter="needs" class="chip" data-i18n="sidebar.filter.needs">
-                  権限未許可
+                  Needs permission
                 </button>
                 <button data-filter="enabled" class="chip" data-i18n="sidebar.filter.enabled">
-                  有効
+                  Enabled
                 </button>
               </div>
             </div>
@@ -76,18 +74,18 @@
       <section class="logs-panel panel">
         <div class="logs-panel-head">
           <div>
-            <h2 data-i18n="logs.title">ログ</h2>
+            <h2 data-i18n="logs.title">Logs</h2>
           </div>
           <div class="log-actions">
-            <button id="export-logs-json" data-i18n="logs.exportJson">JSON 出力</button>
-            <button id="export-logs-csv" data-i18n="logs.exportCsv">CSV 出力</button>
+            <button id="export-logs-json" data-i18n="logs.exportJson">Export JSON</button>
+            <button id="export-logs-csv" data-i18n="logs.exportCsv">Export CSV</button>
           </div>
         </div>
 
         <div class="logs-meta-row">
           <div class="log-settings-card">
             <label class="field slim">
-              <span data-i18n="logs.limit">ログ保存上限件数</span>
+              <span data-i18n="logs.limit">Log retention limit</span>
               <input
                 id="log-limit"
                 type="number"
@@ -95,12 +93,12 @@
                 max="5000"
                 step="10"
                 data-i18n-placeholder="logs.limitPlaceholder"
-                placeholder="空欄なら300を設定"
+                placeholder="Defaults to 300 when blank"
               />
             </label>
           </div>
           <div class="logs-summary-card">
-            <div class="summary-label" data-i18n="logs.summaryTitle">ログの状態</div>
+            <div class="summary-label" data-i18n="logs.summaryTitle">Log status</div>
             <p class="muted-text" id="logs-summary"></p>
           </div>
         </div>
@@ -109,11 +107,11 @@
           <table class="logs-table">
             <thead>
               <tr>
-                <th data-i18n="logs.at">日時</th>
-                <th data-i18n="logs.item">アイテム</th>
-                <th data-i18n="logs.status">状態</th>
-                <th data-i18n="logs.trigger">トリガー</th>
-                <th data-i18n="logs.message">メッセージ</th>
+                <th data-i18n="logs.at">Date/time</th>
+                <th data-i18n="logs.item">Item</th>
+                <th data-i18n="logs.status">Status</th>
+                <th data-i18n="logs.trigger">Trigger</th>
+                <th data-i18n="logs.message">Message</th>
               </tr>
             </thead>
             <tbody id="logs-body"></tbody>
@@ -124,48 +122,484 @@
 
     <footer class="sticky-footer">
       <div class="footer-left">
-        <div id="unsaved-banner" class="unsaved-banner">未保存の変更はありません。</div>
+        <div id="unsaved-banner" class="unsaved-banner">No unsaved changes.</div>
         <div class="footer-note" data-i18n="footer.note">
-          保存ボタンを押すまで、変更は反映されません。（権限の許可・解除は即時反映されます）
+          Changes are not applied until you click Save. Permission grant and revoke actions apply
+          immediately.
         </div>
       </div>
       <div class="footer-actions">
         <span id="status" class="status"></span>
-        <button id="cancel-all" class="ghost" disabled data-i18n="common.cancel">キャンセル</button>
-        <button id="save-all" class="primary" disabled data-i18n="common.save">保存</button>
+        <button id="cancel-all" class="ghost" disabled data-i18n="common.cancel">Cancel</button>
+        <button id="save-all" class="primary" disabled data-i18n="common.save">Save</button>
       </div>
     </footer>
+
+    <template id="detail-empty-template">
+      <div class="detail-empty" data-i18n="detail.empty">Select or create an item.</div>
+    </template>
+
+    <template id="detail-pane-template">
+      <div class="detail-top">
+        <div class="row-between">
+          <div class="badge" data-role="item-number"></div>
+          <div class="row-between" style="gap: 8px">
+            <button id="delete-item" class="danger ghost" data-i18n="detail.deleteItem">
+              Delete
+            </button>
+          </div>
+        </div>
+        <input
+          id="name-input"
+          class="inline-title"
+          data-i18n-placeholder="detail.itemNamePlaceholder"
+          placeholder="Item name"
+        />
+        <textarea
+          id="description-input"
+          class="inline-description"
+          data-i18n-placeholder="detail.itemDescriptionPlaceholder"
+          placeholder="Item description"
+        ></textarea>
+        <div id="detail-validation" class="invalid-hint" hidden></div>
+      </div>
+
+      <div class="detail-grid">
+        <div id="permission-warning" class="warning-box" hidden>
+          <div>
+            <strong id="permission-warning-title"></strong>
+            <div id="permission-warning-body"></div>
+          </div>
+          <button id="grant-top" data-i18n="permission.grantTop">Grant access</button>
+        </div>
+
+        <section class="group-card required">
+          <div class="grid-2 compact-grid">
+            <label class="field">
+              <span data-role="label-url"></span>
+              <input id="url-input" placeholder="https://example.com/page" />
+            </label>
+            <label class="field">
+              <span data-role="label-save-format"></span>
+              <select id="save-format"></select>
+            </label>
+          </div>
+          <div id="output-settings-slot"></div>
+        </section>
+
+        <section class="group-card required">
+          <div class="group-head">
+            <div><h3 data-i18n="groups.schedule">Schedule</h3></div>
+            <button id="add-schedule" data-i18n="groups.addSchedule">+ Add schedule</button>
+          </div>
+          <div id="schedule-list" class="schedule-list"></div>
+        </section>
+
+        <section class="group-card optional">
+          <div class="group-head">
+            <div><h3 data-i18n="groups.options">Options</h3></div>
+          </div>
+          <div class="grid-2 compact-grid">
+            <label class="field">
+              <span data-role="label-download-folder"></span>
+              <input
+                id="download-folder"
+                data-i18n-placeholder="fields.downloadFolderPlaceholder"
+                placeholder="Leave blank to save in the browser default downloads folder"
+              />
+            </label>
+            <label class="field">
+              <span data-role="label-filename-prefix"></span>
+              <input
+                id="filename-prefix"
+                data-i18n-placeholder="fields.filenamePrefixPlaceholder"
+                placeholder="Leave blank to use the item name"
+              />
+            </label>
+          </div>
+          <div class="field" style="margin-top: 12px">
+            <span data-i18n="fields.outputPathPreview">Saved folder and filename</span>
+            <code id="output-path-preview" class="path-preview"></code>
+          </div>
+          <div class="grid-4 compact-grid" style="margin-top: 12px">
+            <label class="field">
+              <span data-i18n="fields.waitBefore">Wait before actions (ms)</span>
+              <input
+                id="wait-before"
+                type="number"
+                min="0"
+                step="100"
+                data-i18n-placeholder="fields.msPlaceholder1000"
+                placeholder="Defaults to 1000 when blank"
+              />
+            </label>
+            <label class="field">
+              <span data-i18n="fields.waitAfter">Wait before saving (ms)</span>
+              <input
+                id="wait-after"
+                type="number"
+                min="0"
+                step="100"
+                data-i18n-placeholder="fields.msPlaceholder1000"
+                placeholder="Defaults to 1000 when blank"
+              />
+            </label>
+            <div></div>
+            <label class="field">
+              <span data-role="label-close-tab"></span>
+              <select id="close-tab"></select>
+            </label>
+          </div>
+          <div class="permission-inline-row" style="margin-top: 12px">
+            <span class="small-text" data-i18n="permission.allowedOrigin">Allowed origin</span>
+            <span id="permission-origin-text" class="permission-origin"></span>
+            <button id="grant-inline" data-i18n="common.grant">Grant</button>
+            <button id="revoke-inline" class="ghost" data-i18n="common.revoke">Revoke</button>
+          </div>
+          <div
+            id="file-access-note"
+            class="small-text"
+            style="margin-top: 8px"
+            hidden
+            data-i18n="permission.fileAccessBody"
+          >
+            Enable file URL access in the extension details page.
+          </div>
+        </section>
+
+        <section class="group-card optional">
+          <div class="group-head">
+            <div>
+              <h3 data-i18n="groups.actions">Actions to run before saving</h3>
+              <p data-i18n="groups.actionsHelp">Actions run from top to bottom.</p>
+            </div>
+            <button id="add-action" data-i18n="groups.addAction">+ Add action</button>
+          </div>
+          <div id="action-list" class="action-list"></div>
+        </section>
+      </div>
+    </template>
+
+    <template id="schedule-card-template">
+      <div class="schedule-card">
+        <label
+          class="schedule-enable-rail"
+          data-i18n-title="action.enableTitle"
+          title="Enable or disable"
+        >
+          <input
+            type="checkbox"
+            data-schedule-field="enabled"
+            aria-label="Enable or disable"
+            data-i18n-aria-label="action.enableTitle"
+          />
+        </label>
+        <div class="schedule-main">
+          <div class="schedule-head">
+            <div class="schedule-title">
+              <div class="badge" data-role="schedule-title"></div>
+            </div>
+            <button
+              type="button"
+              data-action="remove-schedule"
+              class="ghost danger"
+              data-i18n="common.delete"
+            >
+              Delete
+            </button>
+          </div>
+          <div class="schedule-layout">
+            <div class="schedule-time-grid">
+              <label class="field">
+                <span data-role="label-schedule-start"></span>
+                <input type="datetime-local" step="60" data-schedule-field="startAt" />
+              </label>
+              <label class="field">
+                <span data-role="label-schedule-end"></span>
+                <input type="datetime-local" step="60" data-schedule-field="endAt" />
+              </label>
+            </div>
+            <div class="schedule-repeat-block">
+              <div class="schedule-repeat-grid" data-role="schedule-repeat-grid">
+                <label class="field">
+                  <span data-role="label-schedule-mode"></span>
+                  <select data-schedule-field="scheduleMode"></select>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <template id="schedule-interval-fields-template">
+      <label class="field">
+        <span data-role="label-schedule-every"></span>
+        <input type="number" min="1" step="1" data-schedule-field="intervalValue" />
+      </label>
+      <label class="field">
+        <span data-role="label-schedule-unit"></span>
+        <select data-schedule-field="intervalUnit"></select>
+      </label>
+    </template>
+
+    <template id="schedule-monthly-fields-template">
+      <label class="field">
+        <span data-role="label-schedule-monthly-day"></span>
+        <input type="number" min="1" max="31" step="1" data-schedule-field="monthlyDay" />
+      </label>
+      <div class="field schedule-hint-field">
+        <span data-i18n="schedule.unit">Unit</span>
+        <div class="small-text" data-i18n="schedule.monthlyHint">
+          Runs monthly at the start date/time.
+        </div>
+      </div>
+    </template>
+
+    <template id="schedule-once-fields-template">
+      <div class="field schedule-hint-field">
+        <span data-i18n="schedule.every">Recurrence</span>
+        <div class="small-text" data-i18n="schedule.onceHint">Runs once at the start date/time.</div>
+      </div>
+    </template>
+
+    <template id="pdf-output-settings-template">
+      <div class="embedded-settings-block">
+        <div class="group-head">
+          <div><h3 data-i18n="groups.output">Output settings</h3></div>
+        </div>
+        <div class="grid-2 compact-grid">
+          <label class="field">
+            <span data-role="label-pdf-orientation"></span>
+            <select id="pdf-landscape"></select>
+          </label>
+          <label class="field">
+            <span data-role="label-pdf-paper-size"></span>
+            <select id="pdf-paper-size"></select>
+          </label>
+          <label class="field">
+            <span data-role="label-pdf-margins"></span>
+            <select id="pdf-margin-preset"></select>
+          </label>
+          <label class="field">
+            <span data-role="label-pdf-background"></span>
+            <select id="pdf-print-background"></select>
+          </label>
+        </div>
+      </div>
+    </template>
+
+    <template id="jpeg-output-settings-template">
+      <div class="embedded-settings-block">
+        <div class="group-head">
+          <div><h3 data-i18n="groups.output">Output settings</h3></div>
+        </div>
+        <div class="grid-2 compact-grid">
+          <label class="field">
+            <span data-role="label-jpeg-quality"></span>
+            <input id="image-jpeg-quality" type="number" min="1" max="100" step="1" placeholder="90" />
+          </label>
+        </div>
+      </div>
+    </template>
+
+    <template id="action-click-selector-fields-template">
+      <label class="field">
+        <span data-role="label-css-selector"></span>
+        <input data-action-field="selector" />
+      </label>
+      <label class="field">
+        <span data-role="label-wait-ms"></span>
+        <input
+          type="number"
+          data-action-field="waitAfterMs"
+          data-i18n-placeholder="fields.msPlaceholder1000"
+          placeholder="Defaults to 1000 when blank"
+        />
+      </label>
+    </template>
+
+    <template id="action-click-xpath-fields-template">
+      <label class="field">
+        <span data-role="label-xpath"></span>
+        <input data-action-field="xpath" />
+      </label>
+      <label class="field">
+        <span data-role="label-wait-ms"></span>
+        <input
+          type="number"
+          data-action-field="waitAfterMs"
+          data-i18n-placeholder="fields.msPlaceholder1000"
+          placeholder="Defaults to 1000 when blank"
+        />
+      </label>
+    </template>
+
+    <template id="action-set-value-fields-template">
+      <label class="field">
+        <span data-role="label-css-selector"></span>
+        <input data-action-field="selector" />
+      </label>
+      <label class="field">
+        <span data-role="label-value"></span>
+        <input data-action-field="value" />
+      </label>
+      <label class="field">
+        <span data-role="label-dispatch-input"></span>
+        <select data-action-field="dispatchInput"></select>
+      </label>
+      <label class="field">
+        <span data-role="label-dispatch-change"></span>
+        <select data-action-field="dispatchChange"></select>
+      </label>
+    </template>
+
+    <template id="action-wait-for-exists-fields-template">
+      <label class="field">
+        <span data-role="label-selector-type"></span>
+        <select data-action-field="selectorType"></select>
+      </label>
+      <label class="field">
+        <span data-role="label-selector"></span>
+        <input data-action-field="selector" />
+      </label>
+      <label class="field">
+        <span data-role="label-timeout-ms"></span>
+        <input
+          type="number"
+          data-action-field="timeoutMs"
+          data-i18n-placeholder="fields.msPlaceholder10000"
+          placeholder="Defaults to 10000 when blank"
+        />
+      </label>
+    </template>
+
+    <template id="action-wait-for-not-exists-fields-template">
+      <label class="field">
+        <span data-role="label-selector-type"></span>
+        <select data-action-field="selectorType"></select>
+      </label>
+      <label class="field">
+        <span data-role="label-selector"></span>
+        <input data-action-field="selector" />
+      </label>
+      <label class="field">
+        <span data-role="label-timeout-ms"></span>
+        <input
+          type="number"
+          data-action-field="timeoutMs"
+          data-i18n-placeholder="fields.msPlaceholder10000"
+          placeholder="Defaults to 10000 when blank"
+        />
+      </label>
+    </template>
+
+    <template id="action-wait-for-attribute-fields-template">
+      <label class="field">
+        <span data-role="label-selector-type"></span>
+        <select data-action-field="selectorType"></select>
+      </label>
+      <label class="field">
+        <span data-role="label-selector"></span>
+        <input data-action-field="selector" />
+      </label>
+      <label class="field">
+        <span data-role="label-attribute-name"></span>
+        <input data-action-field="attributeName" />
+      </label>
+      <label class="field">
+        <span data-role="label-expected-value"></span>
+        <input data-action-field="expectedValue" />
+      </label>
+      <label class="field">
+        <span data-role="label-operator"></span>
+        <select data-action-field="operator"></select>
+      </label>
+      <label class="field">
+        <span data-role="label-timeout-ms"></span>
+        <input
+          type="number"
+          data-action-field="timeoutMs"
+          data-i18n-placeholder="fields.msPlaceholder10000"
+          placeholder="Defaults to 10000 when blank"
+        />
+      </label>
+    </template>
+
+    <template id="action-wait-fields-template">
+      <label class="field">
+        <span data-role="label-fixed-wait-ms"></span>
+        <input
+          type="number"
+          data-action-field="ms"
+          data-i18n-placeholder="fields.msPlaceholder1000"
+          placeholder="Defaults to 1000 when blank"
+        />
+      </label>
+    </template>
+
+    <template id="action-click-text-fields-template">
+      <label class="field">
+        <span data-role="label-selector"></span>
+        <input data-action-field="selector" />
+      </label>
+      <label class="field">
+        <span data-role="label-text-source-selector"></span>
+        <input data-action-field="textSourceSelector" />
+      </label>
+      <label class="field">
+        <span data-role="label-text"></span>
+        <input data-action-field="text" />
+      </label>
+      <label class="field">
+        <span data-role="label-operator"></span>
+        <select data-action-field="operator"></select>
+      </label>
+      <label class="field">
+        <span data-role="label-wait-after-click"></span>
+        <input
+          type="number"
+          data-action-field="waitAfterMs"
+          data-i18n-placeholder="fields.msPlaceholder1000"
+          placeholder="Defaults to 1000 when blank"
+        />
+      </label>
+    </template>
+
+    <template id="action-empty-template">
+      <div class="small-text" data-role="empty-text"></div>
+    </template>
 
     <template id="action-editor-template">
       <div class="action-card">
         <label
           class="action-enable-rail"
           data-i18n-title="action.enableTitle"
-          title="有効/無効を切り替え"
+          title="Enable or disable"
         >
           <input
             type="checkbox"
             data-action-field="enabled"
-            aria-label="有効/無効を切り替え"
+            aria-label="Enable or disable"
             data-i18n-aria-label="action.enableTitle"
           />
         </label>
         <div class="action-main">
           <div class="action-card-top">
             <div class="action-labels">
-              <span class="step-badge">手順 1</span>
+              <span class="step-badge">Step 1</span>
               <select
                 data-field="type"
-                aria-label="アクション種別"
+                aria-label="Action type"
                 data-i18n-aria-label="fields.actionType"
               ></select>
             </div>
             <div class="action-buttons">
-              <button data-action="move-up">↑</button>
-              <button data-action="move-down">↓</button>
-              <button data-action="duplicate" data-i18n="common.duplicate">複製</button>
+              <button data-action="move-up">Up</button>
+              <button data-action="move-down">Down</button>
+              <button data-action="duplicate" data-i18n="common.duplicate">Duplicate</button>
               <button data-action="delete" class="danger ghost" data-i18n="common.delete">
-                削除
+                Delete
               </button>
             </div>
           </div>

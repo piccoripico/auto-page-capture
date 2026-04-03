@@ -37,6 +37,33 @@ const saveButtonEl = document.getElementById('save-all');
 const cancelButtonEl = document.getElementById('cancel-all');
 const unsavedBannerEl = document.getElementById('unsaved-banner');
 const stickyFooterEl = document.querySelector('.sticky-footer');
+const detailEmptyTemplate = document.getElementById('detail-empty-template');
+const detailTemplate = document.getElementById('detail-pane-template');
+const scheduleCardTemplate = document.getElementById('schedule-card-template');
+const scheduleIntervalFieldsTemplate = document.getElementById('schedule-interval-fields-template');
+const scheduleMonthlyFieldsTemplate = document.getElementById('schedule-monthly-fields-template');
+const scheduleOnceFieldsTemplate = document.getElementById('schedule-once-fields-template');
+const pdfOutputSettingsTemplate = document.getElementById('pdf-output-settings-template');
+const jpegOutputSettingsTemplate = document.getElementById('jpeg-output-settings-template');
+const actionClickSelectorFieldsTemplate = document.getElementById(
+  'action-click-selector-fields-template'
+);
+const actionClickXPathFieldsTemplate = document.getElementById(
+  'action-click-xpath-fields-template'
+);
+const actionSetValueFieldsTemplate = document.getElementById('action-set-value-fields-template');
+const actionWaitForExistsFieldsTemplate = document.getElementById(
+  'action-wait-for-exists-fields-template'
+);
+const actionWaitForNotExistsFieldsTemplate = document.getElementById(
+  'action-wait-for-not-exists-fields-template'
+);
+const actionWaitForAttributeFieldsTemplate = document.getElementById(
+  'action-wait-for-attribute-fields-template'
+);
+const actionWaitFieldsTemplate = document.getElementById('action-wait-fields-template');
+const actionClickTextFieldsTemplate = document.getElementById('action-click-text-fields-template');
+const actionEmptyTemplate = document.getElementById('action-empty-template');
 const actionTemplate = document.getElementById('action-editor-template');
 const exportItemsButtonEl = document.getElementById('export-items-json');
 const importItemsReplaceButtonEl = document.getElementById('import-items-json-replace');
@@ -368,169 +395,365 @@ function toDateTimeLocalValue(value) {
   return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
 }
 
-function scheduleRowHtml(schedule, index) {
-  const locale = currentLocale();
-  const scheduleModeOptions = SCHEDULE_MODE_OPTIONS.map(
-    (x) =>
-      `<option value="${x.value}" ${x.value === schedule.scheduleMode ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
-  ).join('');
-  const intervalUnitOptions = SCHEDULE_INTERVAL_UNIT_OPTIONS.map(
-    (x) =>
-      `<option value="${x.value}" ${x.value === schedule.intervalUnit ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
-  ).join('');
-  const startText = toDateTimeLocalValue(schedule.startAt || '');
-  const endText = toDateTimeLocalValue(schedule.endAt || '');
-  const recurrenceFields =
-    schedule.scheduleMode === 'interval'
-      ? `
-          <label class="field">
-            <span>${localizedLabelHtml('schedule.every', { required: currentRequiredMark() }, locale)}</span>
-            <input type="number" min="1" step="1" data-schedule-index="${index}" data-schedule-field="intervalValue" value="${escapeHtml(schedule.intervalValue)}" />
-          </label>
-          <label class="field">
-            <span>${localizedLabelHtml('schedule.unit', { required: currentRequiredMark() }, locale)}</span>
-            <select data-schedule-index="${index}" data-schedule-field="intervalUnit">${intervalUnitOptions}</select>
-          </label>
-        `
-      : schedule.scheduleMode === 'monthly'
-        ? `
-          <label class="field">
-            <span>${localizedLabelHtml('schedule.monthlyDay', { required: currentRequiredMark() }, locale)}</span>
-            <input type="number" min="1" max="31" step="1" data-schedule-index="${index}" data-schedule-field="monthlyDay" value="${escapeHtml(schedule.monthlyDay)}" />
-          </label>
-          <div class="field schedule-hint-field">
-            <span>${escapeHtml(t('schedule.unit', {}, locale))}</span>
-            <div class="small-text">${escapeHtml(t('schedule.monthlyHint', {}, locale))}</div>
-          </div>
-        `
-        : `
-          <div class="field schedule-hint-field">
-            <span>${escapeHtml(t('schedule.every', {}, locale))}</span>
-            <div class="small-text">${escapeHtml(t('schedule.onceHint', {}, locale))}</div>
-          </div>
-        `;
-  return `
-    <div class="schedule-card ${schedule.enabled ? 'enabled' : 'disabled'}" data-schedule-index="${index}">
-      <label class="schedule-enable-rail" title="${escapeHtml(t('action.enableTitle', {}, locale))}">
-        <input type="checkbox" data-schedule-index="${index}" data-schedule-field="enabled" ${schedule.enabled ? 'checked' : ''} />
-      </label>
-      <div class="schedule-main">
-        <div class="schedule-head">
-          <div class="schedule-title">
-            <div class="badge">${escapeHtml(t('schedule.title', { index: index + 1 }, locale))}</div>
-          </div>
-          ${index === 0 ? '' : `<button type="button" data-action="remove-schedule" class="ghost danger">${escapeHtml(t('common.delete', {}, locale))}</button>`}
-        </div>
-        <div class="schedule-layout">
-          <div class="schedule-time-grid">
-            <label class="field">
-              <span>${localizedLabelHtml('schedule.startAt', { required: currentRequiredMark() }, locale)}</span>
-              <input type="datetime-local" step="60" data-schedule-index="${index}" data-schedule-field="startAt" value="${escapeHtml(startText)}" />
-            </label>
-            <label class="field">
-              <span>${escapeHtml(t('schedule.endAt', {}, locale))}</span>
-              <input type="datetime-local" step="60" data-schedule-index="${index}" data-schedule-field="endAt" value="${escapeHtml(endText)}" />
-            </label>
-          </div>
-          <div class="schedule-repeat-block">
-            <div class="schedule-repeat-grid">
-              <label class="field">
-                <span>${localizedLabelHtml('schedule.mode', { required: currentRequiredMark() }, locale)}</span>
-                <select data-schedule-index="${index}" data-schedule-field="scheduleMode">${scheduleModeOptions}</select>
-              </label>
-              ${recurrenceFields}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+function cloneTemplate(templateEl) {
+  return templateEl.content.cloneNode(true);
 }
 
-function actionFieldsHtml(action, index) {
-  const locale = currentLocale();
+function populateSelectOptions(select, options, selectedValue, locale) {
+  select.innerHTML = options
+    .map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
+    .join('');
+  select.value = String(selectedValue);
+  if (select.value !== String(selectedValue) && options[0]) {
+    select.value = String(options[0].value);
+  }
+  if (locale) {
+    select.setAttribute('lang', locale);
+  }
+}
+
+function setHtml(root, selector, html) {
+  const el = root.querySelector(selector);
+  if (el) {
+    el.innerHTML = html;
+  }
+  return el;
+}
+
+function setText(root, selector, text) {
+  const el = root.querySelector(selector);
+  if (el) {
+    el.textContent = text;
+  }
+  return el;
+}
+
+function buildScheduleRecurrenceFields(schedule, index, locale) {
+  let fragment;
+  if (schedule.scheduleMode === 'interval') {
+    fragment = cloneTemplate(scheduleIntervalFieldsTemplate);
+    setHtml(
+      fragment,
+      '[data-role="label-schedule-every"]',
+      localizedLabelHtml('schedule.every', { required: currentRequiredMark() }, locale)
+    );
+    setHtml(
+      fragment,
+      '[data-role="label-schedule-unit"]',
+      localizedLabelHtml('schedule.unit', { required: currentRequiredMark() }, locale)
+    );
+    const intervalValueInput = fragment.querySelector('[data-schedule-field="intervalValue"]');
+    intervalValueInput.dataset.scheduleIndex = String(index);
+    intervalValueInput.value = String(schedule.intervalValue ?? '');
+    populateSelectOptions(
+      fragment.querySelector('[data-schedule-field="intervalUnit"]'),
+      SCHEDULE_INTERVAL_UNIT_OPTIONS.map((option) => ({
+        value: option.value,
+        label: t(option.labelKey, {}, locale),
+      })),
+      schedule.intervalUnit,
+      locale
+    );
+  } else if (schedule.scheduleMode === 'monthly') {
+    fragment = cloneTemplate(scheduleMonthlyFieldsTemplate);
+    setHtml(
+      fragment,
+      '[data-role="label-schedule-monthly-day"]',
+      localizedLabelHtml('schedule.monthlyDay', { required: currentRequiredMark() }, locale)
+    );
+    const monthlyDayInput = fragment.querySelector('[data-schedule-field="monthlyDay"]');
+    monthlyDayInput.dataset.scheduleIndex = String(index);
+    monthlyDayInput.value = String(schedule.monthlyDay ?? '');
+  } else {
+    fragment = cloneTemplate(scheduleOnceFieldsTemplate);
+  }
+  applyI18n(fragment, locale);
+  fragment.querySelectorAll('[data-schedule-field]').forEach((control) => {
+    control.dataset.scheduleIndex = String(index);
+  });
+  return fragment;
+}
+
+function buildScheduleRow(schedule, index, locale) {
+  const fragment = cloneTemplate(scheduleCardTemplate);
+  const card = fragment.firstElementChild;
+  applyI18n(fragment, locale);
+
+  card.dataset.scheduleIndex = String(index);
+  card.classList.toggle('enabled', schedule.enabled !== false);
+  card.classList.toggle('disabled', schedule.enabled === false);
+
+  card.querySelectorAll('[data-schedule-field]').forEach((control) => {
+    control.dataset.scheduleIndex = String(index);
+  });
+  card.querySelectorAll('[data-action]').forEach((button) => {
+    button.dataset.scheduleIndex = String(index);
+  });
+
+  card.querySelector('[data-schedule-field="enabled"]').checked = schedule.enabled !== false;
+  card.querySelector('[data-action="remove-schedule"]').hidden = index === 0;
+  setText(card, '[data-role="schedule-title"]', t('schedule.title', { index: index + 1 }, locale));
+  setHtml(
+    card,
+    '[data-role="label-schedule-start"]',
+    localizedLabelHtml('schedule.startAt', { required: currentRequiredMark() }, locale)
+  );
+  setText(card, '[data-role="label-schedule-end"]', t('schedule.endAt', {}, locale));
+  setHtml(
+    card,
+    '[data-role="label-schedule-mode"]',
+    localizedLabelHtml('schedule.mode', { required: currentRequiredMark() }, locale)
+  );
+
+  card.querySelector('[data-schedule-field="startAt"]').value = toDateTimeLocalValue(
+    schedule.startAt || ''
+  );
+  card.querySelector('[data-schedule-field="endAt"]').value = toDateTimeLocalValue(
+    schedule.endAt || ''
+  );
+  populateSelectOptions(
+    card.querySelector('[data-schedule-field="scheduleMode"]'),
+    SCHEDULE_MODE_OPTIONS.map((option) => ({
+      value: option.value,
+      label: t(option.labelKey, {}, locale),
+    })),
+    schedule.scheduleMode,
+    locale
+  );
+  card.querySelector('[data-role="schedule-repeat-grid"]').append(
+    buildScheduleRecurrenceFields(schedule, index, locale)
+  );
+  return card;
+}
+
+function buildActionFieldsNode(action, index, locale) {
+  const selectorTypeOptions = [
+    { value: 'css', label: t('selectorType.css', {}, locale) },
+    { value: 'xpath', label: t('selectorType.xpath', {}, locale) },
+  ];
+  const booleanOptions = [
+    { value: 'true', label: t('common.on', {}, locale) },
+    { value: 'false', label: t('common.off', {}, locale) },
+  ];
+  const operatorOptions = [
+    { value: 'equals', label: t('operator.equals', {}, locale) },
+    { value: 'notEquals', label: t('operator.notEquals', {}, locale) },
+    { value: 'contains', label: t('operator.contains', {}, locale) },
+  ];
+  const clickTextOperatorOptions = operatorOptions.filter((option) => option.value !== 'notEquals');
+
+  let fragment;
   switch (action.type) {
     case 'clickSelector':
-      return `
-        <label class="field"><span>${localizedLabelHtml('fields.cssSelector', { required: currentRequiredMark() }, locale)}</span><input data-action-index="${index}" data-action-field="selector" value="${escapeHtml(action.selector)}" /></label>
-        <label class="field"><span>${escapeHtml(t('fields.waitMs', {}, locale))}</span><input type="number" data-action-index="${index}" data-action-field="waitAfterMs" value="${escapeHtml(action.waitAfterMs)}" placeholder="${escapeHtml(t('fields.msPlaceholder1000', {}, locale))}" /></label>
-      `;
+      fragment = cloneTemplate(actionClickSelectorFieldsTemplate);
+      setHtml(
+        fragment,
+        '[data-role="label-css-selector"]',
+        localizedLabelHtml('fields.cssSelector', { required: currentRequiredMark() }, locale)
+      );
+      setText(fragment, '[data-role="label-wait-ms"]', t('fields.waitMs', {}, locale));
+      fragment.querySelector('[data-action-field="selector"]').value = action.selector;
+      fragment.querySelector('[data-action-field="waitAfterMs"]').value = String(action.waitAfterMs);
+      break;
     case 'clickXPath':
-      return `
-        <label class="field"><span>${localizedLabelHtml('fields.xpath', { required: currentRequiredMark() }, locale)}</span><input data-action-index="${index}" data-action-field="xpath" value="${escapeHtml(action.xpath)}" /></label>
-        <label class="field"><span>${escapeHtml(t('fields.waitMs', {}, locale))}</span><input type="number" data-action-index="${index}" data-action-field="waitAfterMs" value="${escapeHtml(action.waitAfterMs)}" placeholder="${escapeHtml(t('fields.msPlaceholder1000', {}, locale))}" /></label>
-      `;
+      fragment = cloneTemplate(actionClickXPathFieldsTemplate);
+      setHtml(
+        fragment,
+        '[data-role="label-xpath"]',
+        localizedLabelHtml('fields.xpath', { required: currentRequiredMark() }, locale)
+      );
+      setText(fragment, '[data-role="label-wait-ms"]', t('fields.waitMs', {}, locale));
+      fragment.querySelector('[data-action-field="xpath"]').value = action.xpath;
+      fragment.querySelector('[data-action-field="waitAfterMs"]').value = String(action.waitAfterMs);
+      break;
     case 'setValue':
-      return `
-        <label class="field"><span>${localizedLabelHtml('fields.cssSelector', { required: currentRequiredMark() }, locale)}</span><input data-action-index="${index}" data-action-field="selector" value="${escapeHtml(action.selector)}" /></label>
-        <label class="field"><span>${localizedLabelHtml('fields.value', { required: currentRequiredMark() }, locale)}</span><input data-action-index="${index}" data-action-field="value" value="${escapeHtml(action.value)}" /></label>
-        <label class="field"><span>${localizedLabelHtml('fields.dispatchInput', { required: currentRequiredMark() }, locale)}</span><select data-action-index="${index}" data-action-field="dispatchInput">
-          <option value="true" ${action.dispatchInput ? 'selected' : ''}>${escapeHtml(t('common.on', {}, locale))}</option>
-          <option value="false" ${!action.dispatchInput ? 'selected' : ''}>${escapeHtml(t('common.off', {}, locale))}</option>
-        </select></label>
-        <label class="field"><span>${localizedLabelHtml('fields.dispatchChange', { required: currentRequiredMark() }, locale)}</span><select data-action-index="${index}" data-action-field="dispatchChange">
-          <option value="true" ${action.dispatchChange ? 'selected' : ''}>${escapeHtml(t('common.on', {}, locale))}</option>
-          <option value="false" ${!action.dispatchChange ? 'selected' : ''}>${escapeHtml(t('common.off', {}, locale))}</option>
-        </select></label>
-      `;
+      fragment = cloneTemplate(actionSetValueFieldsTemplate);
+      setHtml(
+        fragment,
+        '[data-role="label-css-selector"]',
+        localizedLabelHtml('fields.cssSelector', { required: currentRequiredMark() }, locale)
+      );
+      setHtml(
+        fragment,
+        '[data-role="label-value"]',
+        localizedLabelHtml('fields.value', { required: currentRequiredMark() }, locale)
+      );
+      setHtml(
+        fragment,
+        '[data-role="label-dispatch-input"]',
+        localizedLabelHtml('fields.dispatchInput', { required: currentRequiredMark() }, locale)
+      );
+      setHtml(
+        fragment,
+        '[data-role="label-dispatch-change"]',
+        localizedLabelHtml('fields.dispatchChange', { required: currentRequiredMark() }, locale)
+      );
+      fragment.querySelector('[data-action-field="selector"]').value = action.selector;
+      fragment.querySelector('[data-action-field="value"]').value = action.value;
+      populateSelectOptions(
+        fragment.querySelector('[data-action-field="dispatchInput"]'),
+        booleanOptions,
+        String(action.dispatchInput),
+        locale
+      );
+      populateSelectOptions(
+        fragment.querySelector('[data-action-field="dispatchChange"]'),
+        booleanOptions,
+        String(action.dispatchChange),
+        locale
+      );
+      break;
     case 'waitForExists':
-      return `
-        <label class="field"><span>${localizedLabelHtml('fields.selectorType', { required: currentRequiredMark() }, locale)}</span><select data-action-index="${index}" data-action-field="selectorType">
-          <option value="css" ${action.selectorType !== 'xpath' ? 'selected' : ''}>${escapeHtml(t('selectorType.css', {}, locale))}</option>
-          <option value="xpath" ${action.selectorType === 'xpath' ? 'selected' : ''}>${escapeHtml(t('selectorType.xpath', {}, locale))}</option>
-        </select></label>
-        <label class="field"><span>${localizedLabelHtml('fields.selector', { required: currentRequiredMark() }, locale)}</span><input data-action-index="${index}" data-action-field="selector" value="${escapeHtml(action.selector)}" /></label>
-        <label class="field"><span>${escapeHtml(t('fields.timeoutMs', {}, locale))}</span><input type="number" data-action-index="${index}" data-action-field="timeoutMs" value="${escapeHtml(action.timeoutMs)}" placeholder="${escapeHtml(t('fields.msPlaceholder10000', {}, locale))}" /></label>
-      `;
+      fragment = cloneTemplate(actionWaitForExistsFieldsTemplate);
+      setHtml(
+        fragment,
+        '[data-role="label-selector-type"]',
+        localizedLabelHtml('fields.selectorType', { required: currentRequiredMark() }, locale)
+      );
+      setHtml(
+        fragment,
+        '[data-role="label-selector"]',
+        localizedLabelHtml('fields.selector', { required: currentRequiredMark() }, locale)
+      );
+      setText(fragment, '[data-role="label-timeout-ms"]', t('fields.timeoutMs', {}, locale));
+      populateSelectOptions(
+        fragment.querySelector('[data-action-field="selectorType"]'),
+        selectorTypeOptions,
+        action.selectorType,
+        locale
+      );
+      fragment.querySelector('[data-action-field="selector"]').value = action.selector;
+      fragment.querySelector('[data-action-field="timeoutMs"]').value = String(action.timeoutMs);
+      break;
     case 'waitForNotExists':
-      return `
-        <label class="field"><span>${localizedLabelHtml('fields.selectorType', { required: currentRequiredMark() }, locale)}</span><select data-action-index="${index}" data-action-field="selectorType">
-          <option value="css" ${action.selectorType !== 'xpath' ? 'selected' : ''}>${escapeHtml(t('selectorType.css', {}, locale))}</option>
-          <option value="xpath" ${action.selectorType === 'xpath' ? 'selected' : ''}>${escapeHtml(t('selectorType.xpath', {}, locale))}</option>
-        </select></label>
-        <label class="field"><span>${localizedLabelHtml('fields.selector', { required: currentRequiredMark() }, locale)}</span><input data-action-index="${index}" data-action-field="selector" value="${escapeHtml(action.selector)}" /></label>
-        <label class="field"><span>${escapeHtml(t('fields.timeoutMs', {}, locale))}</span><input type="number" data-action-index="${index}" data-action-field="timeoutMs" value="${escapeHtml(action.timeoutMs)}" placeholder="${escapeHtml(t('fields.msPlaceholder10000', {}, locale))}" /></label>
-      `;
+      fragment = cloneTemplate(actionWaitForNotExistsFieldsTemplate);
+      setHtml(
+        fragment,
+        '[data-role="label-selector-type"]',
+        localizedLabelHtml('fields.selectorType', { required: currentRequiredMark() }, locale)
+      );
+      setHtml(
+        fragment,
+        '[data-role="label-selector"]',
+        localizedLabelHtml('fields.selector', { required: currentRequiredMark() }, locale)
+      );
+      setText(fragment, '[data-role="label-timeout-ms"]', t('fields.timeoutMs', {}, locale));
+      populateSelectOptions(
+        fragment.querySelector('[data-action-field="selectorType"]'),
+        selectorTypeOptions,
+        action.selectorType,
+        locale
+      );
+      fragment.querySelector('[data-action-field="selector"]').value = action.selector;
+      fragment.querySelector('[data-action-field="timeoutMs"]').value = String(action.timeoutMs);
+      break;
     case 'waitForAttribute':
-      return `
-        <label class="field"><span>${localizedLabelHtml('fields.selectorType', { required: currentRequiredMark() }, locale)}</span><select data-action-index="${index}" data-action-field="selectorType">
-          <option value="css" ${action.selectorType !== 'xpath' ? 'selected' : ''}>${escapeHtml(t('selectorType.css', {}, locale))}</option>
-          <option value="xpath" ${action.selectorType === 'xpath' ? 'selected' : ''}>${escapeHtml(t('selectorType.xpath', {}, locale))}</option>
-        </select></label>
-        <label class="field"><span>${localizedLabelHtml('fields.selector', { required: currentRequiredMark() }, locale)}</span><input data-action-index="${index}" data-action-field="selector" value="${escapeHtml(action.selector)}" /></label>
-        <label class="field"><span>${localizedLabelHtml('fields.attributeName', { required: currentRequiredMark() }, locale)}</span><input data-action-index="${index}" data-action-field="attributeName" value="${escapeHtml(action.attributeName || '')}" /></label>
-        <label class="field"><span>${localizedLabelHtml('fields.expectedValue', { required: currentRequiredMark() }, locale)}</span><input data-action-index="${index}" data-action-field="expectedValue" value="${escapeHtml(action.expectedValue || '')}" /></label>
-        <label class="field"><span>${localizedLabelHtml('fields.operator', { required: currentRequiredMark() }, locale)}</span><select data-action-index="${index}" data-action-field="operator">
-          <option value="equals" ${action.operator === 'equals' ? 'selected' : ''}>${escapeHtml(t('operator.equals', {}, locale))}</option>
-          <option value="notEquals" ${action.operator === 'notEquals' ? 'selected' : ''}>${escapeHtml(t('operator.notEquals', {}, locale))}</option>
-          <option value="contains" ${action.operator === 'contains' ? 'selected' : ''}>${escapeHtml(t('operator.contains', {}, locale))}</option>
-        </select></label>
-        <label class="field"><span>${escapeHtml(t('fields.timeoutMs', {}, locale))}</span><input type="number" data-action-index="${index}" data-action-field="timeoutMs" value="${escapeHtml(action.timeoutMs)}" placeholder="${escapeHtml(t('fields.msPlaceholder10000', {}, locale))}" /></label>
-      `;
+      fragment = cloneTemplate(actionWaitForAttributeFieldsTemplate);
+      setHtml(
+        fragment,
+        '[data-role="label-selector-type"]',
+        localizedLabelHtml('fields.selectorType', { required: currentRequiredMark() }, locale)
+      );
+      setHtml(
+        fragment,
+        '[data-role="label-selector"]',
+        localizedLabelHtml('fields.selector', { required: currentRequiredMark() }, locale)
+      );
+      setHtml(
+        fragment,
+        '[data-role="label-attribute-name"]',
+        localizedLabelHtml('fields.attributeName', { required: currentRequiredMark() }, locale)
+      );
+      setHtml(
+        fragment,
+        '[data-role="label-expected-value"]',
+        localizedLabelHtml('fields.expectedValue', { required: currentRequiredMark() }, locale)
+      );
+      setHtml(
+        fragment,
+        '[data-role="label-operator"]',
+        localizedLabelHtml('fields.operator', { required: currentRequiredMark() }, locale)
+      );
+      setText(fragment, '[data-role="label-timeout-ms"]', t('fields.timeoutMs', {}, locale));
+      populateSelectOptions(
+        fragment.querySelector('[data-action-field="selectorType"]'),
+        selectorTypeOptions,
+        action.selectorType,
+        locale
+      );
+      fragment.querySelector('[data-action-field="selector"]').value = action.selector;
+      fragment.querySelector('[data-action-field="attributeName"]').value =
+        action.attributeName || '';
+      fragment.querySelector('[data-action-field="expectedValue"]').value =
+        action.expectedValue || '';
+      populateSelectOptions(
+        fragment.querySelector('[data-action-field="operator"]'),
+        operatorOptions,
+        action.operator,
+        locale
+      );
+      fragment.querySelector('[data-action-field="timeoutMs"]').value = String(action.timeoutMs);
+      break;
     case 'wait':
-      return `<label class="field"><span>${escapeHtml(t('fields.fixedWaitMs', {}, locale))}</span><input type="number" data-action-index="${index}" data-action-field="ms" value="${escapeHtml(action.ms)}" placeholder="${escapeHtml(t('fields.msPlaceholder1000', {}, locale))}" /></label>`;
+      fragment = cloneTemplate(actionWaitFieldsTemplate);
+      setText(fragment, '[data-role="label-fixed-wait-ms"]', t('fields.fixedWaitMs', {}, locale));
+      fragment.querySelector('[data-action-field="ms"]').value = String(action.ms);
+      break;
     case 'clickText':
     default:
-      return `
-        <label class="field"><span>${localizedLabelHtml('fields.selector', { required: currentRequiredMark() }, locale)}</span><input data-action-index="${index}" data-action-field="selector" value="${escapeHtml(action.selector)}" /></label>
-        <label class="field"><span>${escapeHtml(t('fields.textSourceSelector', {}, locale))}</span><input data-action-index="${index}" data-action-field="textSourceSelector" value="${escapeHtml(action.textSourceSelector || '')}" /></label>
-        <label class="field"><span>${localizedLabelHtml('fields.text', { required: currentRequiredMark() }, locale)}</span><input data-action-index="${index}" data-action-field="text" value="${escapeHtml(action.text)}" /></label>
-        <label class="field"><span>${localizedLabelHtml('fields.operator', { required: currentRequiredMark() }, locale)}</span><select data-action-index="${index}" data-action-field="operator">
-          <option value="equals" ${action.operator !== 'contains' ? 'selected' : ''}>${escapeHtml(t('operator.equals', {}, locale))}</option>
-          <option value="contains" ${action.operator === 'contains' ? 'selected' : ''}>${escapeHtml(t('operator.contains', {}, locale))}</option>
-        </select></label>
-        <label class="field"><span>${escapeHtml(t('fields.waitAfterClick', {}, locale))}</span><input type="number" data-action-index="${index}" data-action-field="waitAfterMs" value="${escapeHtml(action.waitAfterMs)}" placeholder="${escapeHtml(t('fields.msPlaceholder1000', {}, locale))}" /></label>
-      `;
+      fragment = cloneTemplate(actionClickTextFieldsTemplate);
+      setHtml(
+        fragment,
+        '[data-role="label-selector"]',
+        localizedLabelHtml('fields.selector', { required: currentRequiredMark() }, locale)
+      );
+      setText(
+        fragment,
+        '[data-role="label-text-source-selector"]',
+        t('fields.textSourceSelector', {}, locale)
+      );
+      setHtml(
+        fragment,
+        '[data-role="label-text"]',
+        localizedLabelHtml('fields.text', { required: currentRequiredMark() }, locale)
+      );
+      setHtml(
+        fragment,
+        '[data-role="label-operator"]',
+        localizedLabelHtml('fields.operator', { required: currentRequiredMark() }, locale)
+      );
+      setText(
+        fragment,
+        '[data-role="label-wait-after-click"]',
+        t('fields.waitAfterClick', {}, locale)
+      );
+      fragment.querySelector('[data-action-field="selector"]').value = action.selector;
+      fragment.querySelector('[data-action-field="textSourceSelector"]').value =
+        action.textSourceSelector || '';
+      fragment.querySelector('[data-action-field="text"]').value = action.text;
+      populateSelectOptions(
+        fragment.querySelector('[data-action-field="operator"]'),
+        clickTextOperatorOptions,
+        action.operator === 'contains' ? 'contains' : 'equals',
+        locale
+      );
+      fragment.querySelector('[data-action-field="waitAfterMs"]').value = String(action.waitAfterMs);
+      break;
   }
+
+  applyI18n(fragment, locale);
+  fragment.querySelectorAll('[data-action-field]').forEach((control) => {
+    control.dataset.actionIndex = String(index);
+  });
+  return fragment;
 }
 
 function renderActions(container, item) {
   const locale = currentLocale();
-  container.innerHTML = '';
+  container.replaceChildren();
   if (!item.actions.length) {
-    const empty = document.createElement('div');
-    empty.className = 'small-text';
-    empty.textContent = t('action.empty', {}, locale);
+    const empty = cloneTemplate(actionEmptyTemplate);
+    setText(empty, '[data-role="empty-text"]', t('action.empty', {}, locale));
     container.append(empty);
     return;
   }
@@ -540,59 +763,100 @@ function renderActions(container, item) {
     node.classList.toggle('disabled', action.enabled === false);
     node.querySelector('.step-badge').textContent = t('action.step', { index: index + 1 }, locale);
     const select = node.querySelector('[data-field="type"]');
-    select.innerHTML = ACTION_TYPES.map(
-      (x) =>
-        `<option value="${x.value}" ${x.value === action.type ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
-    ).join('');
+    populateSelectOptions(
+      select,
+      ACTION_TYPES.map((type) => ({
+        value: type.value,
+        label: t(type.labelKey, {}, locale),
+      })),
+      action.type,
+      locale
+    );
     select.dataset.actionIndex = String(index);
     const enabledToggle = node.querySelector('[data-action-field="enabled"]');
     enabledToggle.dataset.actionIndex = String(index);
     enabledToggle.checked = action.enabled !== false;
     const buttons = node.querySelectorAll('[data-action]');
     buttons.forEach((btn) => (btn.dataset.actionIndex = String(index)));
-    node.querySelector('.action-fields').innerHTML = actionFieldsHtml(action, index);
+    const fieldsContainer = node.querySelector('.action-fields');
+    fieldsContainer.replaceChildren(buildActionFieldsNode(action, index, locale));
     applyI18n(node, locale);
     container.append(node);
   });
 }
 
-function renderOutputSettings(item, locale) {
+function buildOutputSettingsNode(item, locale) {
   if (item.saveFormat === 'pdf') {
-    const paperSizeOptions = PDF_PAPER_SIZE_OPTIONS.map(
-      (x) =>
-        `<option value="${x.value}" ${x.value === item.pdfOptions.paperSize ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
-    ).join('');
-    const marginOptions = PDF_MARGIN_OPTIONS.map(
-      (x) =>
-        `<option value="${x.value}" ${x.value === item.pdfOptions.marginPreset ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
-    ).join('');
-    return `
-      <div class="embedded-settings-block">
-        <div class="group-head">
-          <div><h3>${escapeHtml(t('groups.output', {}, locale))}</h3></div>
-        </div>
-        <div class="grid-2 compact-grid">
-          <label class="field"><span>${localizedLabelHtml('fields.pdfOrientation', { required: currentRequiredMark() }, locale)}</span><select id="pdf-landscape"><option value="false" ${!item.pdfOptions.landscape ? 'selected' : ''}>${escapeHtml(t('fields.orientationPortrait', {}, locale))}</option><option value="true" ${item.pdfOptions.landscape ? 'selected' : ''}>${escapeHtml(t('fields.orientationLandscape', {}, locale))}</option></select></label>
-          <label class="field"><span>${localizedLabelHtml('fields.pdfPaperSize', { required: currentRequiredMark() }, locale)}</span><select id="pdf-paper-size">${paperSizeOptions}</select></label>
-          <label class="field"><span>${localizedLabelHtml('fields.pdfMargins', { required: currentRequiredMark() }, locale)}</span><select id="pdf-margin-preset">${marginOptions}</select></label>
-          <label class="field"><span>${localizedLabelHtml('fields.pdfBackground', { required: currentRequiredMark() }, locale)}</span><select id="pdf-print-background"><option value="true" ${item.pdfOptions.printBackground ? 'selected' : ''}>${escapeHtml(t('fields.pdfBackgroundTrue', {}, locale))}</option><option value="false" ${!item.pdfOptions.printBackground ? 'selected' : ''}>${escapeHtml(t('fields.pdfBackgroundFalse', {}, locale))}</option></select></label>
-        </div>
-      </div>
-    `;
+    const fragment = cloneTemplate(pdfOutputSettingsTemplate);
+    const root = fragment.firstElementChild;
+    applyI18n(fragment, locale);
+    setHtml(
+      root,
+      '[data-role="label-pdf-orientation"]',
+      localizedLabelHtml('fields.pdfOrientation', { required: currentRequiredMark() }, locale)
+    );
+    setHtml(
+      root,
+      '[data-role="label-pdf-paper-size"]',
+      localizedLabelHtml('fields.pdfPaperSize', { required: currentRequiredMark() }, locale)
+    );
+    setHtml(
+      root,
+      '[data-role="label-pdf-margins"]',
+      localizedLabelHtml('fields.pdfMargins', { required: currentRequiredMark() }, locale)
+    );
+    setHtml(
+      root,
+      '[data-role="label-pdf-background"]',
+      localizedLabelHtml('fields.pdfBackground', { required: currentRequiredMark() }, locale)
+    );
+    populateSelectOptions(
+      root.querySelector('#pdf-landscape'),
+      [
+        { value: 'false', label: t('fields.orientationPortrait', {}, locale) },
+        { value: 'true', label: t('fields.orientationLandscape', {}, locale) },
+      ],
+      String(item.pdfOptions.landscape),
+      locale
+    );
+    populateSelectOptions(
+      root.querySelector('#pdf-paper-size'),
+      PDF_PAPER_SIZE_OPTIONS.map((option) => ({
+        value: option.value,
+        label: t(option.labelKey, {}, locale),
+      })),
+      item.pdfOptions.paperSize,
+      locale
+    );
+    populateSelectOptions(
+      root.querySelector('#pdf-margin-preset'),
+      PDF_MARGIN_OPTIONS.map((option) => ({
+        value: option.value,
+        label: t(option.labelKey, {}, locale),
+      })),
+      item.pdfOptions.marginPreset,
+      locale
+    );
+    populateSelectOptions(
+      root.querySelector('#pdf-print-background'),
+      [
+        { value: 'true', label: t('fields.pdfBackgroundTrue', {}, locale) },
+        { value: 'false', label: t('fields.pdfBackgroundFalse', {}, locale) },
+      ],
+      String(item.pdfOptions.printBackground),
+      locale
+    );
+    return root;
   }
   if (item.saveFormat === 'jpeg') {
-    return `
-      <div class="embedded-settings-block">
-        <div class="group-head">
-          <div><h3>${escapeHtml(t('groups.output', {}, locale))}</h3></div>
-        </div>
-        <div class="grid-2 compact-grid">
-          <label class="field"><span>${escapeHtml(t('fields.jpegQuality', {}, locale))}</span><input id="image-jpeg-quality" type="number" min="1" max="100" step="1" value="${escapeHtml(item.imageOptions.jpegQuality)}" placeholder="90" /></label>
-        </div>
-      </div>
-    `;
+    const fragment = cloneTemplate(jpegOutputSettingsTemplate);
+    const root = fragment.firstElementChild;
+    applyI18n(fragment, locale);
+    setText(root, '[data-role="label-jpeg-quality"]', t('fields.jpegQuality', {}, locale));
+    root.querySelector('#image-jpeg-quality').value = String(item.imageOptions.jpegQuality);
+    return root;
   }
-  return '';
+  return null;
 }
 
 function outputPathPreviewValue(item, locale) {
@@ -607,7 +871,9 @@ function renderDetail() {
   const detailPanel = detailRootEl.closest('.detail');
   if (!item) {
     detailPanel?.classList.remove('item-disabled');
-    detailRootEl.innerHTML = `<div class="detail-empty">${escapeHtml(t('detail.empty', {}, locale))}</div>`;
+    const fragment = cloneTemplate(detailEmptyTemplate);
+    applyI18n(fragment, locale);
+    detailRootEl.replaceChildren(fragment);
     return;
   }
   detailPanel?.classList.toggle('item-disabled', item.enabled === false);
@@ -615,116 +881,110 @@ function renderDetail() {
   const permissionMissing = !state.permissionMap[item.id] && !!item.url;
   const fileUrl = isFileUrl(item.url);
   const permissionResolvable = Boolean(item.url) && canRequestOriginPermission(item.url);
-  const outputSettingsHtml = renderOutputSettings(item, locale);
-  const formatOptions = SAVE_FORMATS.map(
-    (x) =>
-      `<option value="${x.value}" ${x.value === item.saveFormat ? 'selected' : ''}>${escapeHtml(t(x.labelKey, {}, locale))}</option>`
-  ).join('');
-  detailRootEl.innerHTML = `
-    <div class="detail-top">
-      <div class="row-between">
-        <div class="badge">${escapeHtml(t('shared.itemName', { index: state.items.findIndex((x) => x.id === item.id) + 1 }, locale))}</div>
-        <div class="row-between" style="gap:8px">
-          <button id="delete-item" class="danger ghost">${escapeHtml(t('detail.deleteItem', {}, locale))}</button>
-        </div>
-      </div>
-      <input id="name-input" class="inline-title" value="${escapeHtml(item.name)}" placeholder="${escapeHtml(t('detail.itemNamePlaceholder', {}, locale))}" />
-      <textarea id="description-input" class="inline-description" placeholder="${escapeHtml(t('detail.itemDescriptionPlaceholder', {}, locale))}">${escapeHtml(item.description)}</textarea>
-      ${!validation.ok ? `<div class="invalid-hint">${escapeHtml(validation.errors[0])}</div>` : ''}
-    </div>
-    <div class="detail-grid">
-      ${
-        permissionMissing
-          ? `
-        <div class="warning-box">
-          <div>
-            <strong>${escapeHtml(
-              t(fileUrl ? 'permission.fileAccessTitle' : 'permission.title', {}, locale)
-            )}</strong>
-            <div>${escapeHtml(
-              t(
-                fileUrl ? 'permission.fileAccessBody' : 'permission.body',
-                fileUrl ? {} : { url: item.url },
-                locale
-              )
-            )}</div>
-          </div>
-          ${
-            fileUrl
-              ? ''
-              : `<button id="grant-top">${escapeHtml(t('permission.grantTop', {}, locale))}</button>`
-          }
-        </div>`
-          : ''
-      }
+  const fragment = cloneTemplate(detailTemplate);
+  applyI18n(fragment, locale);
 
-      <section class="group-card required">
-        <div class="grid-2 compact-grid">
-          <label class="field"><span>${localizedLabelHtml('fields.url', { required: currentRequiredMark() }, locale)}</span><input id="url-input" value="${escapeHtml(item.url)}" placeholder="https://example.com/page" /></label>
-          <label class="field"><span>${localizedLabelHtml('fields.saveFormat', { required: currentRequiredMark() }, locale)}</span><select id="save-format">${formatOptions}</select></label>
-        </div>
-        ${outputSettingsHtml}
-      </section>
+  setText(
+    fragment,
+    '[data-role="item-number"]',
+    t(
+      'shared.itemName',
+      { index: state.items.findIndex((x) => x.id === item.id) + 1 },
+      locale
+    )
+  );
+  setHtml(
+    fragment,
+    '[data-role="label-url"]',
+    localizedLabelHtml('fields.url', { required: currentRequiredMark() }, locale)
+  );
+  setHtml(
+    fragment,
+    '[data-role="label-save-format"]',
+    localizedLabelHtml('fields.saveFormat', { required: currentRequiredMark() }, locale)
+  );
+  setText(fragment, '[data-role="label-download-folder"]', t('fields.downloadFolder', {}, locale));
+  setText(fragment, '[data-role="label-filename-prefix"]', t('fields.filenamePrefix', {}, locale));
+  setHtml(
+    fragment,
+    '[data-role="label-close-tab"]',
+    localizedLabelHtml('fields.closeTab', { required: currentRequiredMark() }, locale)
+  );
 
-      <section class="group-card required">
-        <div class="group-head">
-          <div><h3>${escapeHtml(t('groups.schedule', {}, locale))}</h3></div>
-          <button id="add-schedule">${escapeHtml(t('groups.addSchedule', {}, locale))}</button>
-        </div>
-        <div class="schedule-list" id="schedule-list">${item.schedules.map((schedule, index) => scheduleRowHtml(schedule, index)).join('')}</div>
-      </section>
+  const validationEl = fragment.querySelector('#detail-validation');
+  validationEl.hidden = validation.ok;
+  validationEl.textContent = validation.ok ? '' : validation.errors[0];
 
-      <section class="group-card optional">
-        <div class="group-head">
-          <div><h3>${escapeHtml(t('groups.options', {}, locale))}</h3></div>
-        </div>
-        <div class="grid-2 compact-grid">
-          <label class="field"><span>${escapeHtml(t('fields.downloadFolder', {}, locale))}</span><input id="download-folder" value="${escapeHtml(item.downloadFolder)}" placeholder="${escapeHtml(t('fields.downloadFolderPlaceholder', {}, locale))}" /></label>
-          <label class="field"><span>${escapeHtml(t('fields.filenamePrefix', {}, locale))}</span><input id="filename-prefix" value="${escapeHtml(item.filenamePrefix)}" placeholder="${escapeHtml(t('fields.filenamePrefixPlaceholder', {}, locale))}" /></label>
-        </div>
-        <div class="field" style="margin-top:12px">
-          <span>${escapeHtml(t('fields.outputPathPreview', {}, locale))}</span>
-          <code id="output-path-preview" class="path-preview">${escapeHtml(outputPathPreviewValue(item, locale))}</code>
-        </div>
-        <div class="grid-4 compact-grid" style="margin-top:12px">
-          <label class="field"><span>${escapeHtml(t('fields.waitBefore', {}, locale))}</span><input id="wait-before" type="number" min="0" step="100" value="${escapeHtml(item.waitBeforeActionsMs)}" placeholder="${escapeHtml(t('fields.msPlaceholder1000', {}, locale))}" /></label>
-          <label class="field"><span>${escapeHtml(t('fields.waitAfter', {}, locale))}</span><input id="wait-after" type="number" min="0" step="100" value="${escapeHtml(item.waitAfterActionsMs)}" placeholder="${escapeHtml(t('fields.msPlaceholder1000', {}, locale))}" /></label>
-          <div></div>
-          <label class="field"><span>${localizedLabelHtml('fields.closeTab', { required: currentRequiredMark() }, locale)}</span><select id="close-tab"><option value="true" ${item.closeTabAfterSave ? 'selected' : ''}>${escapeHtml(t('fields.closeTabTrue', {}, locale))}</option><option value="false" ${!item.closeTabAfterSave ? 'selected' : ''}>${escapeHtml(t('fields.closeTabFalse', {}, locale))}</option></select></label>
-        </div>
-        <div class="permission-inline-row" style="margin-top:12px;">
-          <span class="small-text">${escapeHtml(t('permission.allowedOrigin', {}, locale))}</span>
-          <span class="permission-origin">${escapeHtml(
-            (() => {
-              try {
-                return item.url
-                  ? deriveOriginPattern(item.url)
-                  : t('permission.urlUnset', {}, locale);
-              } catch {
-                return t('permission.urlInvalid', {}, locale);
-              }
-            })()
-          )}</span>
-          <button id="grant-inline" ${!permissionMissing || !permissionResolvable ? 'disabled' : ''}>${escapeHtml(t('common.grant', {}, locale))}</button>
-          <button id="revoke-inline" class="ghost" ${permissionMissing || !permissionResolvable ? 'disabled' : ''}>${escapeHtml(t('common.revoke', {}, locale))}</button>
-        </div>
-        ${
-          fileUrl
-            ? `<div class="small-text" style="margin-top:8px">${escapeHtml(t('permission.fileAccessBody', {}, locale))}</div>`
-            : ''
-        }
-      </section>
+  fragment.querySelector('#name-input').value = item.name;
+  fragment.querySelector('#description-input').value = item.description;
+  fragment.querySelector('#url-input').value = item.url;
+  fragment.querySelector('#download-folder').value = item.downloadFolder;
+  fragment.querySelector('#filename-prefix').value = item.filenamePrefix;
+  fragment.querySelector('#output-path-preview').textContent = outputPathPreviewValue(item, locale);
+  fragment.querySelector('#wait-before').value = String(item.waitBeforeActionsMs);
+  fragment.querySelector('#wait-after').value = String(item.waitAfterActionsMs);
 
-      <section class="group-card optional">
-        <div class="group-head">
-          <div><h3>${escapeHtml(t('groups.actions', {}, locale))}</h3><p>${escapeHtml(t('groups.actionsHelp', {}, locale))}</p></div>
-          <button id="add-action">${escapeHtml(t('groups.addAction', {}, locale))}</button>
-        </div>
-        <div id="action-list" class="action-list"></div>
-      </section>
-    </div>
-  `;
-  renderActions(document.getElementById('action-list'), item);
+  populateSelectOptions(
+    fragment.querySelector('#save-format'),
+    SAVE_FORMATS.map((option) => ({
+      value: option.value,
+      label: t(option.labelKey, {}, locale),
+    })),
+    item.saveFormat,
+    locale
+  );
+  populateSelectOptions(
+    fragment.querySelector('#close-tab'),
+    [
+      { value: 'true', label: t('fields.closeTabTrue', {}, locale) },
+      { value: 'false', label: t('fields.closeTabFalse', {}, locale) },
+    ],
+    String(item.closeTabAfterSave),
+    locale
+  );
+
+  const outputSettingsNode = buildOutputSettingsNode(item, locale);
+  const outputSettingsSlot = fragment.querySelector('#output-settings-slot');
+  outputSettingsSlot.replaceChildren();
+  if (outputSettingsNode) {
+    outputSettingsSlot.append(outputSettingsNode);
+  }
+
+  const permissionWarningEl = fragment.querySelector('#permission-warning');
+  permissionWarningEl.hidden = !permissionMissing;
+  if (permissionMissing) {
+    fragment.querySelector('#permission-warning-title').textContent = t(
+      fileUrl ? 'permission.fileAccessTitle' : 'permission.title',
+      {},
+      locale
+    );
+    fragment.querySelector('#permission-warning-body').textContent = t(
+      fileUrl ? 'permission.fileAccessBody' : 'permission.body',
+      fileUrl ? {} : { url: item.url },
+      locale
+    );
+    fragment.querySelector('#grant-top').hidden = fileUrl;
+  }
+
+  const scheduleList = fragment.querySelector('#schedule-list');
+  item.schedules.forEach((schedule, index) => {
+    scheduleList.append(buildScheduleRow(schedule, index, locale));
+  });
+
+  const permissionOriginText = (() => {
+    try {
+      return item.url ? deriveOriginPattern(item.url) : t('permission.urlUnset', {}, locale);
+    } catch {
+      return t('permission.urlInvalid', {}, locale);
+    }
+  })();
+  fragment.querySelector('#permission-origin-text').textContent = permissionOriginText;
+  fragment.querySelector('#grant-inline').disabled = !permissionMissing || !permissionResolvable;
+  fragment.querySelector('#revoke-inline').disabled = permissionMissing || !permissionResolvable;
+  fragment.querySelector('#file-access-note').hidden = !fileUrl;
+
+  renderActions(fragment.querySelector('#action-list'), item);
+  detailRootEl.replaceChildren(fragment);
 }
 
 function renderAll() {
