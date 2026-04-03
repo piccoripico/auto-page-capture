@@ -228,6 +228,29 @@ test.describe('options page', () => {
     await expect(page.locator('[data-role="label-wait-after-click"] .required-symbol')).toHaveCount(0);
   });
 
+  test('shows a URL hint for supported schemes', async ({
+    baseURL,
+    extensionId,
+    page,
+    resetExtensionState,
+  }) => {
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/options.html`);
+    await resetExtensionState(buildSeedState(baseURL));
+    await page.reload();
+
+    const urlField = page.locator('label.field').filter({ has: page.locator('#url-input') });
+    await expect(urlField.locator('.field-label-row')).toContainText('URL');
+    await expect(urlField.locator('.field-help-inline')).toHaveText(
+      'Supported: http://, https://, file://'
+    );
+    await expect(page.locator('[data-role="permission-label"]')).toHaveText('Granted origin');
+    await expect(page.locator('#permission-origin-text')).toHaveText(
+      `${new URL(baseURL).origin}/*`
+    );
+  });
+
   test('shows a preview of the saved file path', async ({
     baseURL,
     extensionId,
@@ -636,6 +659,8 @@ test.describe('options page', () => {
     await expect(page.locator('#url-input')).toHaveValue(
       'file:///tmp/auto-page-capture-sample.html'
     );
+    await expect(page.locator('[data-role="permission-label"]')).toHaveText('File URL access');
+    await expect(page.locator('#permission-origin-text')).toHaveText('Not enabled');
     await expect(page.locator('.warning-box')).toContainText('Allow access to file URLs');
     await expect(page.locator('#grant-inline')).toBeDisabled();
     await expect(page.locator('#revoke-inline')).toBeDisabled();
@@ -648,6 +673,27 @@ test.describe('options page', () => {
 
     const stored = await readExtensionState(['items']);
     expect(stored.items[0].url).toBe('file:///tmp/auto-page-capture-updated.html');
+  });
+
+  test('hides file URL guidance when file access is already enabled', async ({
+    extensionId,
+    page,
+    resetExtensionState,
+  }) => {
+    await page.addInitScript(() => {
+      chrome.extension.isAllowedFileSchemeAccess = (callback) => callback(true);
+    });
+
+    await resetExtensionState();
+
+    await page.goto(`chrome-extension://${extensionId}/options.html`);
+    await resetExtensionState(buildFileUrlSeedState());
+    await page.reload();
+
+    await expect(page.locator('[data-role="permission-label"]')).toHaveText('File URL access');
+    await expect(page.locator('#permission-origin-text')).toHaveText('Enabled');
+    await expect(page.locator('#permission-warning')).toHaveCount(0);
+    await expect(page.locator('#file-access-note')).toBeHidden();
   });
 
   test('removes the permission warning frame after permission is granted', async ({
