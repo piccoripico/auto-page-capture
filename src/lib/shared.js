@@ -34,9 +34,20 @@ export const SAVE_FORMATS = [
 ];
 
 export const PDF_PAPER_SIZE_OPTIONS = [
+  { value: 'a0', labelKey: 'shared.paperSize.a0', width: 33.11, height: 46.81 },
+  { value: 'a1', labelKey: 'shared.paperSize.a1', width: 23.39, height: 33.11 },
+  { value: 'a2', labelKey: 'shared.paperSize.a2', width: 16.54, height: 23.39 },
+  { value: 'a3', labelKey: 'shared.paperSize.a3', width: 11.69, height: 16.54 },
   { value: 'a4', labelKey: 'shared.paperSize.a4', width: 8.27, height: 11.69 },
+  { value: 'a5', labelKey: 'shared.paperSize.a5', width: 5.83, height: 8.27 },
+  { value: 'b1', labelKey: 'shared.paperSize.b1', width: 27.83, height: 39.37 },
+  { value: 'b2', labelKey: 'shared.paperSize.b2', width: 19.69, height: 27.83 },
+  { value: 'b3', labelKey: 'shared.paperSize.b3', width: 13.9, height: 19.69 },
+  { value: 'b4', labelKey: 'shared.paperSize.b4', width: 9.84, height: 13.9 },
+  { value: 'b5', labelKey: 'shared.paperSize.b5', width: 6.93, height: 9.84 },
   { value: 'letter', labelKey: 'shared.paperSize.letter', width: 8.5, height: 11 },
   { value: 'legal', labelKey: 'shared.paperSize.legal', width: 8.5, height: 14 },
+  { value: 'tabloid', labelKey: 'shared.paperSize.tabloid', width: 11, height: 17 },
 ];
 export const PDF_PAPER_SIZE_MAP = Object.fromEntries(
   PDF_PAPER_SIZE_OPTIONS.map((x) => [x.value, x])
@@ -131,13 +142,6 @@ export function normalizeAuthOptions(raw = {}) {
     loginFailureUrlPattern: String(raw.loginFailureUrlPattern || '').trim(),
     requiredSelectorType: raw.requiredSelectorType === 'xpath' ? 'xpath' : 'css',
     requiredSelector: String(raw.requiredSelector || '').trim(),
-  };
-}
-
-export function normalizeRetryOptions(raw = {}) {
-  return {
-    maxRetries: Math.max(0, Math.min(5, Number(raw.maxRetries ?? 0) || 0)),
-    retryDelayMs: Math.max(0, Number(raw.retryDelayMs ?? 1000) || 1000),
   };
 }
 
@@ -555,7 +559,6 @@ export function normalizeItem(raw = {}) {
   const pdfOptionsSource = hasOwn('pdfOptions') ? raw.pdfOptions : {};
   const imageOptionsSource = hasOwn('imageOptions') ? raw.imageOptions : {};
   const authOptionsSource = hasOwn('authOptions') ? raw.authOptions : {};
-  const retryOptionsSource = hasOwn('retryOptions') ? raw.retryOptions : {};
   const schedulesRaw =
     Array.isArray(raw.schedules) && raw.schedules.length > 0
       ? raw.schedules
@@ -598,7 +601,6 @@ export function normalizeItem(raw = {}) {
     pdfOptions: normalizePdfOptions(pdfOptionsSource),
     imageOptions: normalizeImageOptions(imageOptionsSource),
     authOptions: normalizeAuthOptions(authOptionsSource),
-    retryOptions: normalizeRetryOptions(retryOptionsSource),
     actions,
   };
 }

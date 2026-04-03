@@ -328,50 +328,6 @@ export function buildAlarmSeedState(baseURL) {
   };
 }
 
-export function buildRetrySeedState(baseURL) {
-  return {
-    settingsVersion: 11,
-    items: [
-      {
-        id: 'item_retry_success',
-        name: 'Retry capture target',
-        description: 'Succeeds on the second attempt after a transient capture failure.',
-        enabled: true,
-        url: `${baseURL}/capture-target.html`,
-        saveFormat: 'mhtml',
-        schedules: [
-          {
-            id: 'schedule_retry_success',
-            startAt: '2030-03-04T09:30',
-            scheduleMode: 'interval',
-            intervalValue: 1,
-            intervalUnit: 'day',
-            endAt: '',
-            enabled: true,
-          },
-        ],
-        downloadFolder: '',
-        filenamePrefix: 'retry-capture',
-        closeTabAfterSave: true,
-        waitBeforeActionsMs: 100,
-        waitAfterActionsMs: 100,
-        retryOptions: {
-          maxRetries: 1,
-          retryDelayMs: 100,
-        },
-        actions: [],
-      },
-    ],
-    recentHistory: [],
-    logs: [],
-    lastRunByItem: {},
-    appSettings: {
-      logLimit: 300,
-      uiLanguage: 'en',
-    },
-  };
-}
-
 export function buildFileUrlSeedState(fileUrl = 'file:///tmp/auto-page-capture-sample.html') {
   return {
     settingsVersion: 11,
